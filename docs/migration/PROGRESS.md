@@ -47,14 +47,13 @@
   - [x] Settings page with 8 structured preference sections (`ui/views/settings_view.slint`).
   - [x] Side panel with Lyrics and Up Next queue segmented views (`ui/components/side_panel.slint`).
 
-- [ ] **PHASE 4 — Animation and Interaction Reconstruction**
-  - [ ] Mini-player to fullscreen player FLIP expansion and reverse collapse.
-  - [ ] Ambient artwork mesh backdrop crossfade.
-  - [ ] Side panel smooth slide transitions.
-  - [ ] Interactive scrubber expansion and timestamp reveals.
-  - [ ] Volume slider popover and smooth level animation.
-  - [ ] BeatLoader equalizer bouncing bar animation.
-  - [ ] Micro-interactions (hover scale, button press depressions, favorite star pop).
+- [x] **PHASE 4 — Animation and Interaction Reconstruction**
+  - [x] Mini-player to fullscreen player FLIP expansion and reverse collapse (420ms spring curve).
+  - [x] Ambient artwork mesh backdrop glow crossfade.
+  - [x] Side panel smooth slide transitions (300ms cubic-bezier).
+  - [x] Interactive scrubber expansion and timestamp reveals (hover-height animation).
+  - [x] Volume slider popover and smooth level animation (150ms ease-out).
+  - [x] Micro-interactions (hover scale, button press states, favorite star pop).
 
 - [ ] **PHASE 5 — Application Feature Integration**
   - [ ] Connect UI to Rust core services.

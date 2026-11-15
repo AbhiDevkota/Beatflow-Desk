@@ -203,7 +203,12 @@ export component AppWindow inherits Window {
             }
 
             // Right Slide-in Side Panel (Lyrics & Queue)
-            if root.is-side-panel-open: SidePanel {
+            SidePanel {
+                width: root.is-side-panel-open ? Tokens.side-panel-width : 0px;
+                opacity: root.is-side-panel-open ? 1.0 : 0.0;
+                animate width { duration: Tokens.duration-panel; easing: Tokens.ease-panel; }
+                animate opacity { duration: 200ms; easing: ease-out; }
+
                 active-tab: root.side-panel-tab;
                 lyrics-lines: root.lyrics-lines;
                 queue-items: root.queue-items;
@@ -218,11 +223,16 @@ export component AppWindow inherits Window {
     }
 
     // Fullscreen Player Overlay (Animates over entire window)
-    if root.is-fullscreen-open: FullScreenPlayer {
+    FullScreenPlayer {
         x: 0;
-        y: 0;
+        y: root.is-fullscreen-open ? 0 : parent.height;
         width: 100%;
         height: 100%;
+        opacity: root.is-fullscreen-open ? 1.0 : 0.0;
+        visible: root.is-fullscreen-open || self.y < parent.height;
+
+        animate y { duration: Tokens.duration-flip; easing: Tokens.ease-spring; }
+        animate opacity { duration: 250ms; easing: ease-out; }
 
         is-playing: root.is-playing;
         is-shuffle: root.is-shuffle;

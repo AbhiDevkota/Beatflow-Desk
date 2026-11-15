@@ -23,6 +23,9 @@ pub struct AudioPlayer {
     is_playing: Arc<AtomicBool>,
 }
 
+unsafe impl Send for AudioPlayer {}
+unsafe impl Sync for AudioPlayer {}
+
 impl Default for AudioPlayer {
     fn default() -> Self {
         Self::new()

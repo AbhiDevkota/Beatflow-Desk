@@ -5,7 +5,7 @@
 use slint::ComponentHandle;
 use beatflow::platform::single_instance::check_and_forward;
 use beatflow::services::network::start_loopback_server;
-use beatflow::{AppWindow, UiBridge};
+use beatflow::{AppCoordinator, AppWindow};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -32,9 +32,14 @@ async fn main() -> anyhow::Result<()> {
     })));
 
     let app = AppWindow::new()?;
-    let _bridge = UiBridge::new(app.as_weak());
 
-    // Setup window controls
+    // Initialize core application coordinator
+    let coordinator = AppCoordinator::new(&app);
+
+    // Load initial home discovery data
+    coordinator.load_initial_home_content();
+
+    // Setup window close callback
     app.on_window_close(move || {
         slint::quit_event_loop().unwrap_or(());
     });

@@ -11,6 +11,7 @@ pub struct QueueTimeline {
     pub index: isize,
     pub original_order: Vec<QueueEntry>,
     pub is_shuffled: bool,
+    pub repeat_mode: RepeatMode,
 }
 
 impl QueueTimeline {
@@ -20,7 +21,32 @@ impl QueueTimeline {
             index: -1,
             original_order: Vec::new(),
             is_shuffled: false,
+            repeat_mode: RepeatMode::Off,
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.entries.clear();
+        self.original_order.clear();
+        self.index = -1;
+    }
+
+    pub fn is_shuffle(&self) -> bool {
+        self.is_shuffled
+    }
+
+    pub fn set_shuffle(&mut self, shuffle: bool) {
+        if self.is_shuffled != shuffle {
+            self.toggle_shuffle();
+        }
+    }
+
+    pub fn repeat_mode(&self) -> RepeatMode {
+        self.repeat_mode
+    }
+
+    pub fn set_repeat_mode(&mut self, mode: RepeatMode) {
+        self.repeat_mode = mode;
     }
 
     pub fn current_track(&self) -> Option<&Track> {

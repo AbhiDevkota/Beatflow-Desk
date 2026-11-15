@@ -161,6 +161,12 @@ impl YouTubeClient {
         Ok(val)
     }
 
+    /// Performs search and parses results directly into structured `SearchTrack` items.
+    pub async fn search_tracks(&self, query: &str) -> anyhow::Result<Vec<SearchTrack>> {
+        let val = self.search(query).await?;
+        Ok(parse_search_tracks(&val))
+    }
+
     /// Fetches live autocomplete search suggestions.
     pub async fn search_suggestions(&self, input: &str) -> anyhow::Result<Vec<String>> {
         let body = json!({
@@ -199,6 +205,66 @@ impl YouTubeClient {
             }
         Ok(suggestions)
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchTrack {
+    pub video_id: String,
+    pub title: String,
+    pub artist: String,
+    pub album: String,
+    pub duration: String,
+    pub explicit: bool,
+}
+
+pub fn parse_search_tracks(val: &Value) -> Vec<SearchTrack> {
+    let mut tracks = Vec::new();
+    if let Some(contents) = val.pointer("/contents/tabbedSearchResultsRenderer/tabs/0/tabRenderer/content/sectionListRenderer/contents").and_then(Value::as_array) {
+        for sec in contents {
+            if let Some(items) = sec.pointer("/musicShelfRenderer/contents").and_then(Value::as_array) {
+                for item in items {
+                    if let Some(t) = item.get("musicResponsiveListItemRenderer").and_then(parse_responsive_item) {
+                        tracks.push(t);
+                    }
+                }
+            }
+        }
+    }
+    tracks
+}
+
+fn parse_responsive_item(renderer: &Value) -> Option<SearchTrack> {
+    let video_id = renderer.pointer("/playlistItemData/videoId")
+        .or_else(|| renderer.pointer("/overlay/musicItemThumbnailOverlayRenderer/content/musicPlayButtonRenderer/playNavigationEndpoint/watchEndpoint/videoId"))
+        .and_then(Value::as_str)?
+        .to_string();
+
+    let title = renderer.pointer("/flexColumns/0/musicResponsiveListItemFlexColumnRenderer/text/runs/0/text")
+        .and_then(Value::as_str)
+        .unwrap_or("Unknown Title")
+        .to_string();
+
+    let runs = renderer.pointer("/flexColumns/1/musicResponsiveListItemFlexColumnRenderer/text/runs").and_then(Value::as_array);
+
+    let artist = runs.and_then(|r| r.first()).and_then(|item| item.get("text")).and_then(Value::as_str).unwrap_or("Unknown Artist").to_string();
+    let album = runs.and_then(|r| r.get(2)).and_then(|item| item.get("text")).and_then(Value::as_str).unwrap_or("").to_string();
+    let duration = runs.and_then(|r| r.last()).and_then(|item| item.get("text")).and_then(Value::as_str).unwrap_or("").to_string();
+
+    let explicit = renderer.get("badges").and_then(Value::as_array).is_some_and(|b| {
+        b.iter().any(|badge| {
+            badge.pointer("/musicInlineBadgeRenderer/icon/iconType").and_then(Value::as_str) == Some("MUSIC_EXPLICIT_BADGE")
+        })
+    });
+
+    Some(SearchTrack {
+        video_id,
+        title,
+        artist,
+        album,
+        duration,
+        explicit,
+    })
 }
 
 #[cfg(test)]

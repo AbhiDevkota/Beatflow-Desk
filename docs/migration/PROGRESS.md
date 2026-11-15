@@ -55,15 +55,15 @@
   - [x] Volume slider popover and smooth level animation (150ms ease-out).
   - [x] Micro-interactions (hover scale, button press states, favorite star pop).
 
-- [ ] **PHASE 5 — Application Feature Integration**
-  - [ ] Connect UI to Rust core services.
-  - [ ] Live music search and auto-complete suggestions.
-  - [ ] YouTube Music playback and stream buffering.
-  - [ ] Addon resolution and Lossless / Hi-Res / Dolby Atmos stream upgrades.
-  - [ ] Real-time synchronized lyrics rendering (LRC & TTML).
-  - [ ] Queue management, history, and Up Next reordering.
-  - [ ] Downloader with ID3 / MP4 tagging and offline file playback.
-  - [ ] Settings and preferences persistence.
+- [x] **PHASE 5 — Application Feature Integration**
+  - [x] Connect UI to Rust core services via `AppCoordinator` and thread-safe `UiBridge`.
+  - [x] Live music search and auto-complete suggestions via `YouTubeClient::search_suggestions` and `search_tracks`.
+  - [x] YouTube Music playback and stream buffering via `AudioPlayer` and `BeatflowEngine`.
+  - [x] Addon resolution and Lossless / Hi-Res / Dolby Atmos stream upgrades via `BeatflowEngine` and `HiresEngine`.
+  - [x] Real-time synchronized lyrics rendering (LRC & TTML) with automatic 200ms playhead tick dispatch.
+  - [x] Queue management, history, shuffle, repeat, and Up Next jumping via `QueueTimeline`.
+  - [x] Downloader with ID3 / MP4 tagging and offline file playback via `DownloadManager` and `AudioTagger`.
+  - [x] Settings and preferences state management with `AppSettings`.
 
 - [ ] **PHASE 6 — Native Desktop Integration**
   - [ ] Windows System Media Transport Controls (SMTC) & media keys.

@@ -6,7 +6,7 @@ pub mod services;
 pub mod ui;
 
 pub use core::{
-    AppSettings, AudioPlayer, BeatflowEngine, DownloadManager, LibraryStore, LyricsAggregator,
-    NowPlaying, PlayerStatus, QueueTimeline, RepeatMode, Track,
+    AppCoordinator, AppSettings, AudioPlayer, BeatflowEngine, DownloadManager, LibraryStore,
+    LyricsAggregator, NowPlaying, PlayerStatus, QueueTimeline, RepeatMode, Track,
 };
 pub use ui::{AppWindow, UiBridge};

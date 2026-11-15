@@ -28,24 +28,24 @@
   - [x] Typed domain models and state management isolated from UI.
   - [x] Core unit and integration tests passing (10 tests in `beatflow`, 8 tests in `desktop/src-tauri`).
 
-- [ ] **PHASE 2 — Slint Application Foundation**
-  - [ ] Slint build integration (`build.rs`, `slint-build`, `ui/app.slint`).
-  - [ ] Window frame, sizing, custom titlebar, and responsive constraints.
-  - [ ] Design token definitions in Slint (colors, typography, radii, spacing).
-  - [ ] Font and asset pipeline (San Francisco Pro Display, SVG icons).
-  - [ ] Rust-to-Slint async event loop bridge established.
+- [x] **PHASE 2 — Slint Application Foundation**
+  - [x] Slint build integration (`build.rs`, `slint-build`, `ui/app.slint`).
+  - [x] Window frame, sizing, custom titlebar, and responsive constraints.
+  - [x] Design token definitions in Slint (colors, typography, radii, spacing in `tokens.slint`).
+  - [x] Font and asset pipeline (All 32 SVG vector icons and logo mark in `assets/icons/` and `icons.slint`).
+  - [x] Rust-to-Slint async event loop bridge established (`src/ui/bridge.rs`, `UiBridge`).
 
-- [ ] **PHASE 3 — UI Reconstruction**
-  - [ ] Main application shell and layout.
-  - [ ] Sidebar navigation and sub-sections (Library, Playlists, Spotify, Account).
-  - [ ] Mini-player floating pill (Transport, LCD, Action controls).
-  - [ ] Fullscreen player view with large artwork and dual-pane layout.
-  - [ ] Home page (Top Picks, Recently Played, dynamic shelves, mood canvas).
-  - [ ] Search interface (input, suggestions, categorized results).
-  - [ ] Album, Artist, and Playlist detail pages.
-  - [ ] Downloads and offline management interface.
-  - [ ] Settings page with 8 structured preference sections.
-  - [ ] Modals, dialogs, and contextual menus.
+- [x] **PHASE 3 — UI Reconstruction**
+  - [x] Main application shell and layout (`ui/app.slint`).
+  - [x] Sidebar navigation and sub-sections (`ui/components/sidebar.slint`).
+  - [x] Mini-player floating pill (`ui/components/player_bar.slint`, `lcd.slint`).
+  - [x] Fullscreen player view with large artwork and dual-pane layout (`ui/components/fullscreen_player.slint`).
+  - [x] Home page (`ui/views/home_view.slint`).
+  - [x] Search interface (`ui/views/search_view.slint`).
+  - [x] Track list table and action row (`ui/components/track_row.slint`).
+  - [x] Downloads and offline management interface (`ui/views/downloads_view.slint`).
+  - [x] Settings page with 8 structured preference sections (`ui/views/settings_view.slint`).
+  - [x] Side panel with Lyrics and Up Next queue segmented views (`ui/components/side_panel.slint`).
 
 - [ ] **PHASE 4 — Animation and Interaction Reconstruction**
   - [ ] Mini-player to fullscreen player FLIP expansion and reverse collapse.

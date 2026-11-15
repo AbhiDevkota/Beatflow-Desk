@@ -1,0 +1,254 @@
+// BeatFlow Navigation Sidebar
+
+import { Tokens } from "../tokens.slint";
+import {
+    LogoMarkIcon, HomeIcon, NewIcon, SearchIcon, LibraryIcon, DownloadsIcon,
+    ArtistsIcon, AlbumsIcon, SongsIcon, PlaylistsIcon, SettingsIcon, PlusIcon
+} from "../icons.slint";
+
+export component NavItem inherits Rectangle {
+    in-out property <string> label: "";
+    in-out property <bool> is-selected: false;
+    in-out property <bool> has-icon: true;
+
+    callback clicked();
+
+    border-radius: Tokens.radius-medium;
+    background: root.is-selected ? Tokens.nav-item-selected : (touch.has-hover ? Tokens.nav-item-hover : transparent);
+    height: 34px;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 12px;
+        alignment: start;
+
+        @children
+
+        Text {
+            text: root.label;
+            color: root.is-selected ? Tokens.accent : (touch.has-hover ? Tokens.text-primary : Tokens.text-secondary);
+            font-size: Tokens.font-size-body;
+            font-weight: root.is-selected ? Tokens.font-weight-semibold : Tokens.font-weight-regular;
+            vertical-alignment: center;
+        }
+    }
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+export component Sidebar inherits Rectangle {
+    width: Tokens.sidebar-width;
+    background: Tokens.nav-sidebar-bg;
+    border-color: Tokens.border-subtle;
+    border-width: 1px;
+
+    in-out property <string> current-route: "home";
+    in-out property <bool> is-signed-in: false;
+    in-out property <string> user-name: "Guest";
+
+    callback navigate(string);
+    callback new-playlist();
+    callback open-settings();
+    callback open-account();
+
+    VerticalLayout {
+        padding-top: 18px;
+        padding-bottom: 18px;
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 6px;
+
+        // Brand Header
+        HorizontalLayout {
+            padding-left: 8px;
+            padding-bottom: 14px;
+            spacing: 10px;
+            alignment: start;
+
+            LogoMarkIcon {
+                width: 24px;
+                height: 24px;
+                y: (parent.height - self.height) / 2;
+            }
+
+            Text {
+                text: "BeatFlow";
+                color: Tokens.text-primary;
+                font-size: 19px;
+                font-weight: Tokens.font-weight-bold;
+                vertical-alignment: center;
+            }
+        }
+
+        // Search trigger
+        NavItem {
+            label: "Search";
+            is-selected: root.current-route == "search";
+            clicked => { root.navigate("search"); }
+            SearchIcon {
+                icon-color: root.current-route == "search" ? Tokens.accent : Tokens.text-secondary;
+                width: 17px;
+                height: 17px;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+
+        NavItem {
+            label: "Home";
+            is-selected: root.current-route == "home";
+            clicked => { root.navigate("home"); }
+            HomeIcon {
+                icon-color: root.current-route == "home" ? Tokens.accent : Tokens.text-secondary;
+                width: 18px;
+                height: 18px;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+
+        NavItem {
+            label: "New Releases";
+            is-selected: root.current-route == "new";
+            clicked => { root.navigate("new"); }
+            NewIcon {
+                icon-color: root.current-route == "new" ? Tokens.accent : Tokens.text-secondary;
+                width: 18px;
+                height: 18px;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+
+        // Library Section Divider
+        Rectangle { height: 10px; }
+
+        HorizontalLayout {
+            padding-left: 12px;
+            padding-right: 8px;
+            padding-bottom: 4px;
+            alignment: space-between;
+
+            Text {
+                text: "Library";
+                color: Tokens.text-tertiary;
+                font-size: Tokens.font-size-caption;
+                font-weight: Tokens.font-weight-semibold;
+                vertical-alignment: center;
+            }
+        }
+
+        NavItem {
+            label: "Artists";
+            is-selected: root.current-route == "artists";
+            clicked => { root.navigate("artists"); }
+            ArtistsIcon {
+                icon-color: root.current-route == "artists" ? Tokens.accent : Tokens.text-secondary;
+                width: 18px;
+                height: 18px;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+
+        NavItem {
+            label: "Albums";
+            is-selected: root.current-route == "albums";
+            clicked => { root.navigate("albums"); }
+            AlbumsIcon {
+                icon-color: root.current-route == "albums" ? Tokens.accent : Tokens.text-secondary;
+                width: 18px;
+                height: 18px;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+
+        NavItem {
+            label: "Songs";
+            is-selected: root.current-route == "songs";
+            clicked => { root.navigate("songs"); }
+            SongsIcon {
+                icon-color: root.current-route == "songs" ? Tokens.accent : Tokens.text-secondary;
+                width: 18px;
+                height: 18px;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+
+        NavItem {
+            label: "Downloads";
+            is-selected: root.current-route == "downloads";
+            clicked => { root.navigate("downloads"); }
+            DownloadsIcon {
+                icon-color: root.current-route == "downloads" ? Tokens.accent : Tokens.text-secondary;
+                width: 18px;
+                height: 18px;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+
+        // Playlists Section
+        Rectangle { height: 10px; }
+
+        HorizontalLayout {
+            padding-left: 12px;
+            padding-right: 8px;
+            padding-bottom: 4px;
+            alignment: space-between;
+
+            Text {
+                text: "Playlists";
+                color: Tokens.text-tertiary;
+                font-size: Tokens.font-size-caption;
+                font-weight: Tokens.font-weight-semibold;
+                vertical-alignment: center;
+            }
+
+            Rectangle {
+                width: 20px;
+                height: 20px;
+                border-radius: 10px;
+                background: new_pl_touch.has-hover ? Tokens.nav-item-hover : transparent;
+
+                PlusIcon {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    icon-color: Tokens.text-tertiary;
+                    width: 12px;
+                    height: 12px;
+                }
+
+                new_pl_touch := TouchArea {
+                    clicked => { root.new-playlist(); }
+                }
+            }
+        }
+
+        NavItem {
+            label: "All Playlists";
+            is-selected: root.current-route == "playlists";
+            clicked => { root.navigate("playlists"); }
+            PlaylistsIcon {
+                icon-color: root.current-route == "playlists" ? Tokens.accent : Tokens.text-secondary;
+                width: 18px;
+                height: 18px;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+
+        // Flex spacer pushing footer to bottom
+        Rectangle { }
+
+        // Settings Footer
+        NavItem {
+            label: "Settings";
+            is-selected: root.current-route == "settings";
+            clicked => { root.navigate("settings"); }
+            SettingsIcon {
+                icon-color: root.current-route == "settings" ? Tokens.accent : Tokens.text-secondary;
+                width: 18px;
+                height: 18px;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+    }
+}

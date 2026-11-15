@@ -1,0 +1,167 @@
+// BeatFlow Home View
+
+import { Tokens } from "../tokens.slint";
+import { PlayIcon } from "../icons.slint";
+import { TrackRow } from "../components/track_row.slint";
+
+export struct ShelfCardData {
+    id: string,
+    title: string,
+    subtitle: string,
+    category: string,
+}
+
+export struct HomeTrackData {
+    id: string,
+    title: string,
+    artist: string,
+    album: string,
+    duration: string,
+    is_explicit: bool,
+}
+
+export component HomeView inherits Rectangle {
+    in-out property <[ShelfCardData]> top-picks: [];
+    in-out property <[HomeTrackData]> recent-tracks: [];
+    in-out property <string> active-track-id: "";
+
+    callback play-card(string);
+    callback play-track(string);
+
+    background: transparent;
+
+    Flickable {
+        content-height: 800px;
+
+        VerticalLayout {
+            padding-left: Tokens.content-gutter;
+            padding-right: Tokens.content-gutter;
+            padding-top: 20px;
+            padding-bottom: 120px;
+            spacing: 28px;
+
+            // Top Picks Header
+            VerticalLayout {
+                spacing: 4px;
+                Text {
+                    text: "TOP PICKS";
+                    color: Tokens.text-tertiary;
+                    font-size: Tokens.font-size-caption;
+                    font-weight: Tokens.font-weight-bold;
+                    letter-spacing: 0.8px;
+                }
+                Text {
+                    text: "Listen Now";
+                    color: Tokens.text-primary;
+                    font-size: 28px;
+                    font-weight: Tokens.font-weight-bold;
+                }
+            }
+
+            // Top Picks Cards Row
+            HorizontalLayout {
+                spacing: 18px;
+
+                for card[idx] in root.top-picks: Rectangle {
+                    width: 220px;
+                    height: 270px;
+                    border-radius: Tokens.radius-large;
+                    background: Tokens.card-bg;
+                    clip: true;
+
+                    VerticalLayout {
+                        // Card artwork container
+                        card_art := Rectangle {
+                            height: 190px;
+                            background: idx == 0 ? #fa233b33 : (idx == 1 ? #0a84ff33 : #32d74b33);
+
+                            Text {
+                                text: card.category;
+                                color: Tokens.text-secondary;
+                                font-size: Tokens.font-size-caption;
+                                font-weight: Tokens.font-weight-bold;
+                                x: 12px;
+                                y: 12px;
+                            }
+
+                            // Play button overlay on hover
+                            if card_touch.has-hover: Rectangle {
+                                width: 44px;
+                                height: 44px;
+                                border-radius: 22px;
+                                background: Tokens.accent;
+                                x: parent.width - self.width - 12px;
+                                y: parent.height - self.height - 12px;
+
+                                PlayIcon {
+                                    x: (parent.width - self.width) / 2 + 1px;
+                                    y: (parent.height - self.height) / 2;
+                                    icon-color: #ffffff;
+                                    width: 22px;
+                                    height: 22px;
+                                }
+                            }
+                        }
+
+                        // Card label & description
+                        VerticalLayout {
+                            padding: 10px;
+                            spacing: 2px;
+
+                            Text {
+                                text: card.title;
+                                color: Tokens.text-primary;
+                                font-size: Tokens.font-size-body;
+                                font-weight: Tokens.font-weight-semibold;
+                                overflow: elide;
+                            }
+
+                            Text {
+                                text: card.subtitle;
+                                color: Tokens.text-secondary;
+                                font-size: Tokens.font-size-caption;
+                                overflow: elide;
+                            }
+                        }
+                    }
+
+                    card_touch := TouchArea {
+                        clicked => { root.play-card(card.id); }
+                    }
+                }
+            }
+
+            // Recently Played Section
+            VerticalLayout {
+                spacing: 12px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "Recently Played";
+                        color: Tokens.text-primary;
+                        font-size: Tokens.font-size-title;
+                        font-weight: Tokens.font-weight-bold;
+                    }
+                }
+
+                VerticalLayout {
+                    spacing: 2px;
+
+                    for track[idx] in root.recent-tracks: TrackRow {
+                        index: idx + 1;
+                        track-id: track.id;
+                        title: track.title;
+                        artist: track.artist;
+                        album: track.album;
+                        duration: track.duration;
+                        is-active: track.id == root.active-track-id;
+                        is-explicit: track.is_explicit;
+
+                        play => { root.play-track(track.id); }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,255 @@
+// BeatFlow Native Desktop Application
+// Root Slint Application Shell
+
+import { Tokens } from "tokens.slint";
+import { TitleBar } from "components/titlebar.slint";
+import { Sidebar } from "components/sidebar.slint";
+import { PlayerBar } from "components/player_bar.slint";
+import { SidePanel, QueueItemData, LyricLineData } from "components/side_panel.slint";
+import { FullScreenPlayer } from "components/fullscreen_player.slint";
+import { HomeView, ShelfCardData, HomeTrackData } from "views/home_view.slint";
+import { SearchView } from "views/search_view.slint";
+import { DownloadsView, DownloadTaskData } from "views/downloads_view.slint";
+import { SettingsView } from "views/settings_view.slint";
+
+export component AppWindow inherits Window {
+    title: "BeatFlow";
+    preferred-width: 1200px;
+    preferred-height: 800px;
+    min-width: 900px;
+    min-height: 600px;
+    background: Tokens.page-bg;
+    no-frame: true;
+
+    // Navigation & View State
+    in-out property <string> current-route: "home";
+    in-out property <bool> is-side-panel-open: false;
+    in-out property <int> side-panel-tab: 0; // 0 = Lyrics, 1 = Up Next
+    in-out property <bool> is-fullscreen-open: false;
+
+    // Player State
+    in-out property <bool> is-playing: false;
+    in-out property <bool> is-shuffle: false;
+    in-out property <int> repeat-mode: 0;
+    in-out property <bool> is-favorite: false;
+    in-out property <float> volume-level: 0.8;
+    in-out property <string> track-title: "Not Playing";
+    in-out property <string> artist-name: "BeatFlow";
+    in-out property <string> album-title: "";
+    in-out property <string> quality-badge: "Hi-Res Lossless";
+    in-out property <float> progress-ratio: 0.0;
+    in-out property <string> time-elapsed: "0:00";
+    in-out property <string> time-remaining: "-0:00";
+    in-out property <image> artwork-image;
+    in-out property <bool> has-artwork: false;
+    in-out property <string> active-track-id: "";
+
+    // Data Models
+    in-out property <[ShelfCardData]> home-top-picks: [];
+    in-out property <[HomeTrackData]> home-recent-tracks: [];
+    in-out property <string> search-query: "";
+    in-out property <[HomeTrackData]> search-results: [];
+    in-out property <[string]> search-suggestions: [];
+    in-out property <[QueueItemData]> queue-items: [];
+    in-out property <[LyricLineData]> lyrics-lines: [];
+    in-out property <[DownloadTaskData]> active-downloads: [];
+    in-out property <[HomeTrackData]> downloaded-tracks: [];
+
+    // Window Callbacks
+    callback window-drag();
+    callback window-minimize();
+    callback window-maximize();
+    callback window-close();
+
+    // Player Callbacks
+    callback toggle-play();
+    callback next-track();
+    callback previous-track();
+    callback toggle-shuffle();
+    callback cycle-repeat();
+    callback toggle-favorite();
+    callback set-volume(float);
+    callback seek(float);
+    callback seek-lyric-time(int);
+    callback clear-queue();
+    callback play-queue-index(int);
+
+    // Navigation & Search Callbacks
+    callback navigate(string);
+    callback search-query-changed(string);
+    callback submit-search(string);
+    callback play-track(string);
+    callback open-downloads-folder();
+    callback change-setting(string, string);
+
+    // Root Layout
+    VerticalLayout {
+        // Custom Frameless Window Titlebar
+        TitleBar {
+            drag => { root.window-drag(); }
+            minimize => { root.window-minimize(); }
+            maximize => { root.window-maximize(); }
+            close => { root.window-close(); }
+        }
+
+        // Main Body: Sidebar + Dynamic Content + Side Panel
+        HorizontalLayout {
+            // Left Sidebar
+            Sidebar {
+                current-route: root.current-route;
+                navigate(route) => {
+                    root.current-route = route;
+                    root.navigate(route);
+                }
+                new-playlist => { root.navigate("new-playlist"); }
+                open-settings => { root.current-route = "settings"; }
+            }
+
+            // Main Content Area with Floating Mini-Player Bar
+            main_content := Rectangle {
+                clip: true;
+
+                // View Router
+                if root.current-route == "home": HomeView {
+                    top-picks: root.home-top-picks;
+                    recent-tracks: root.home-recent-tracks;
+                    active-track-id: root.active-track-id;
+                    play-card(id) => { root.play-track(id); }
+                    play-track(id) => { root.play-track(id); }
+                }
+
+                if root.current-route == "search": SearchView {
+                    query: root.search-query;
+                    search-results: root.search-results;
+                    suggestions: root.search-suggestions;
+                    active-track-id: root.active-track-id;
+                    search-query-changed(q) => { root.search-query-changed(q); }
+                    submit-search(q) => { root.submit-search(q); }
+                    play-result(id) => { root.play-track(id); }
+                    select-suggestion(sug) => { root.submit-search(sug); }
+                }
+
+                if root.current-route == "downloads": DownloadsView {
+                    active-downloads: root.active-downloads;
+                    downloaded-tracks: root.downloaded-tracks;
+                    active-track-id: root.active-track-id;
+                    open-folder => { root.open-downloads-folder(); }
+                    play-track(id) => { root.play-track(id); }
+                }
+
+                if root.current-route == "settings": SettingsView {
+                    toggle-atmos(val) => { root.change-setting("prefer_atmos", val ? "true" : "false"); }
+                    toggle-gapless(val) => { root.change-setting("gapless", val ? "true" : "false"); }
+                    toggle-discord-rpc(val) => { root.change-setting("discord_rpc", val ? "true" : "false"); }
+                }
+
+                if root.current-route == "artists" || root.current-route == "albums" || root.current-route == "songs" || root.current-route == "playlists" || root.current-route == "new": HomeView {
+                    top-picks: root.home-top-picks;
+                    recent-tracks: root.home-recent-tracks;
+                    active-track-id: root.active-track-id;
+                    play-track(id) => { root.play-track(id); }
+                }
+
+                // Floating Mini-Player Bar Pill at bottom center
+                player_bar := PlayerBar {
+                    x: (parent.width - self.width) / 2;
+                    y: parent.height - self.height - Tokens.player-bottom-offset;
+                    width: min(Tokens.player-max-width, parent.width - 40px);
+
+                    is-playing: root.is-playing;
+                    is-shuffle: root.is-shuffle;
+                    repeat-mode: root.repeat-mode;
+                    is-favorite: root.is-favorite;
+                    is-lyrics-open: root.is-side-panel-open && root.side-panel-tab == 0;
+                    is-queue-open: root.is-side-panel-open && root.side-panel-tab == 1;
+                    volume-level: root.volume-level;
+
+                    track-title: root.track-title;
+                    artist-name: root.artist-name;
+                    album-title: root.album-title;
+                    quality-badge: root.quality-badge;
+                    progress-ratio: root.progress-ratio;
+                    time-elapsed: root.time-elapsed;
+                    time-remaining: root.time-remaining;
+                    artwork-image: root.artwork-image;
+                    has-artwork: root.has-artwork;
+
+                    toggle-play => { root.toggle-play(); }
+                    next-track => { root.next-track(); }
+                    previous-track => { root.previous-track(); }
+                    toggle-shuffle => { root.toggle-shuffle(); }
+                    cycle-repeat => { root.cycle-repeat(); }
+                    toggle-favorite => { root.toggle-favorite(); }
+                    toggle-lyrics => {
+                        if root.is-side-panel-open && root.side-panel-tab == 0 {
+                            root.is-side-panel-open = false;
+                        } else {
+                            root.side-panel-tab = 0;
+                            root.is-side-panel-open = true;
+                        }
+                    }
+                    toggle-queue => {
+                        if root.is-side-panel-open && root.side-panel-tab == 1 {
+                            root.is-side-panel-open = false;
+                        } else {
+                            root.side-panel-tab = 1;
+                            root.is-side-panel-open = true;
+                        }
+                    }
+                    set-volume(v) => { root.set-volume(v); }
+                    seek(r) => { root.seek(r); }
+                    expand-fullscreen => { root.is-fullscreen-open = true; }
+                }
+            }
+
+            // Right Slide-in Side Panel (Lyrics & Queue)
+            if root.is-side-panel-open: SidePanel {
+                active-tab: root.side-panel-tab;
+                lyrics-lines: root.lyrics-lines;
+                queue-items: root.queue-items;
+
+                close => { root.is-side-panel-open = false; }
+                select-tab(t) => { root.side-panel-tab = t; }
+                play-queue-index(idx) => { root.play-queue-index(idx); }
+                clear-queue => { root.clear-queue(); }
+                seek-lyric-time(t) => { root.seek-lyric-time(t); }
+            }
+        }
+    }
+
+    // Fullscreen Player Overlay (Animates over entire window)
+    if root.is-fullscreen-open: FullScreenPlayer {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+
+        is-playing: root.is-playing;
+        is-shuffle: root.is-shuffle;
+        repeat-mode: root.repeat-mode;
+        is-favorite: root.is-favorite;
+        volume-level: root.volume-level;
+
+        track-title: root.track-title;
+        artist-name: root.artist-name;
+        album-title: root.album-title;
+        quality-badge: root.quality-badge;
+        progress-ratio: root.progress-ratio;
+        time-elapsed: root.time-elapsed;
+        time-remaining: root.time-remaining;
+        artwork-image: root.artwork-image;
+        has-artwork: root.has-artwork;
+        lyrics-lines: root.lyrics-lines;
+
+        collapse => { root.is-fullscreen-open = false; }
+        toggle-play => { root.toggle-play(); }
+        next-track => { root.next-track(); }
+        previous-track => { root.previous-track(); }
+        toggle-shuffle => { root.toggle-shuffle(); }
+        cycle-repeat => { root.cycle-repeat(); }
+        toggle-favorite => { root.toggle-favorite(); }
+        set-volume(v) => { root.set-volume(v); }
+        seek(r) => { root.seek(r); }
+        seek-lyric-time(t) => { root.seek-lyric-time(t); }
+    }
+}

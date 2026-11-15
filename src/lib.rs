@@ -3,8 +3,10 @@
 pub mod core;
 pub mod platform;
 pub mod services;
+pub mod ui;
 
 pub use core::{
     AppSettings, AudioPlayer, BeatflowEngine, DownloadManager, LibraryStore, LyricsAggregator,
     NowPlaying, PlayerStatus, QueueTimeline, RepeatMode, Track,
 };
+pub use ui::{AppWindow, UiBridge};

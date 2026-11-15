@@ -1,0 +1,111 @@
+// Window Titlebar with frameless controls
+
+import { Tokens } from "../tokens.slint";
+import { CloseIcon, MinimizeIcon, MaximizeIcon, LogoMarkIcon } from "../icons.slint";
+
+export component TitleBar inherits Rectangle {
+    height: Tokens.titlebar-height;
+    background: transparent;
+
+    callback close();
+    callback minimize();
+    callback maximize();
+    callback drag();
+
+    TouchArea {
+        x: 0;
+        y: 0;
+        width: parent.width - 140px;
+        height: parent.height;
+        moved => { root.drag(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 0px;
+        alignment: space-between;
+
+        // Left brand
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            y: (parent.height - 20px) / 2;
+
+            LogoMarkIcon {
+                width: 18px;
+                height: 18px;
+            }
+
+            Text {
+                text: "BeatFlow";
+                color: Tokens.text-secondary;
+                font-size: Tokens.font-size-caption;
+                font-weight: Tokens.font-weight-semibold;
+                vertical-alignment: center;
+            }
+        }
+
+        // Right window control buttons
+        HorizontalLayout {
+            spacing: 0px;
+            alignment: end;
+
+            // Minimize
+            min_btn := Rectangle {
+                width: 46px;
+                height: Tokens.titlebar-height;
+                background: min_touch.has-hover ? Tokens.window-control-hover : transparent;
+
+                MinimizeIcon {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    icon-color: Tokens.text-secondary;
+                    width: 12px;
+                    height: 12px;
+                }
+
+                min_touch := TouchArea {
+                    clicked => { root.minimize(); }
+                }
+            }
+
+            // Maximize
+            max_btn := Rectangle {
+                width: 46px;
+                height: Tokens.titlebar-height;
+                background: max_touch.has-hover ? Tokens.window-control-hover : transparent;
+
+                MaximizeIcon {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    icon-color: Tokens.text-secondary;
+                    width: 11px;
+                    height: 11px;
+                }
+
+                max_touch := TouchArea {
+                    clicked => { root.maximize(); }
+                }
+            }
+
+            // Close
+            close_btn := Rectangle {
+                width: 46px;
+                height: Tokens.titlebar-height;
+                background: close_touch.has-hover ? Tokens.window-close-hover : transparent;
+
+                CloseIcon {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    icon-color: close_touch.has-hover ? #ffffff : Tokens.text-secondary;
+                    width: 12px;
+                    height: 12px;
+                }
+
+                close_touch := TouchArea {
+                    clicked => { root.close(); }
+                }
+            }
+        }
+    }
+}

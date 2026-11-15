@@ -1,0 +1,233 @@
+// BeatFlow Downloads & Offline Library View
+
+import { Tokens } from "../tokens.slint";
+import { DownloadsIcon, PlayIcon, CheckIcon } from "../icons.slint";
+import { TrackRow } from "../components/track_row.slint";
+import { HomeTrackData } from "home_view.slint";
+
+export struct DownloadTaskData {
+    id: string,
+    title: string,
+    artist: string,
+    progress: float, // 0.0 to 1.0
+    status: string,
+}
+
+export component DownloadsView inherits Rectangle {
+    in-out property <[DownloadTaskData]> active-downloads: [];
+    in-out property <[HomeTrackData]> downloaded-tracks: [];
+    in-out property <string> active-track-id: "";
+    in-out property <string> storage-path: "";
+    in-out property <string> total-size: "0 MB";
+
+    callback open-folder();
+    callback play-track(string);
+    callback retry-download(string);
+
+    background: transparent;
+
+    Flickable {
+        content-height: 800px;
+
+        VerticalLayout {
+            padding-left: Tokens.content-gutter;
+            padding-right: Tokens.content-gutter;
+            padding-top: 20px;
+            padding-bottom: 120px;
+            spacing: 24px;
+
+            // Header & Storage Info
+            HorizontalLayout {
+                alignment: space-between;
+
+                VerticalLayout {
+                    spacing: 4px;
+                    Text {
+                        text: "DOWNLOADS";
+                        color: Tokens.text-tertiary;
+                        font-size: Tokens.font-size-caption;
+                        font-weight: Tokens.font-weight-bold;
+                        letter-spacing: 0.8px;
+                    }
+                    Text {
+                        text: "Offline Library";
+                        color: Tokens.text-primary;
+                        font-size: 28px;
+                        font-weight: Tokens.font-weight-bold;
+                    }
+                }
+
+                // Open Folder Button
+                Rectangle {
+                    width: 140px;
+                    height: 36px;
+                    border-radius: 18px;
+                    background: open_touch.has-hover ? Tokens.nav-item-selected : Tokens.card-bg;
+                    border-color: Tokens.border-subtle;
+                    border-width: 1px;
+                    y: (parent.height - self.height) / 2;
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+
+                        DownloadsIcon {
+                            icon-color: Tokens.text-primary;
+                            width: 14px;
+                            height: 14px;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        Text {
+                            text: "Open Folder";
+                            color: Tokens.text-primary;
+                            font-size: Tokens.font-size-body;
+                            font-weight: Tokens.font-weight-medium;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    open_touch := TouchArea {
+                        clicked => { root.open-folder(); }
+                    }
+                }
+            }
+
+            // Active Tasks (if any)
+            if root.active-downloads.length > 0: VerticalLayout {
+                spacing: 10px;
+
+                Text {
+                    text: "Active Downloads";
+                    color: Tokens.text-secondary;
+                    font-size: Tokens.font-size-title;
+                    font-weight: Tokens.font-weight-semibold;
+                }
+
+                for task in root.active-downloads: Rectangle {
+                    height: 52px;
+                    border-radius: Tokens.radius-medium;
+                    background: Tokens.card-bg;
+                    border-color: Tokens.border-subtle;
+                    border-width: 1px;
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        spacing: 16px;
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 4px;
+
+                            Text {
+                                text: task.title;
+                                color: Tokens.text-primary;
+                                font-size: Tokens.font-size-body;
+                                font-weight: Tokens.font-weight-medium;
+                                overflow: elide;
+                            }
+
+                            // Progress bar
+                            Rectangle {
+                                width: 220px;
+                                height: 4px;
+                                border-radius: 2px;
+                                background: Tokens.scrubber-track;
+
+                                Rectangle {
+                                    x: 0;
+                                    y: 0;
+                                    width: parent.width * task.progress;
+                                    height: parent.height;
+                                    border-radius: 2px;
+                                    background: Tokens.accent;
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: task.status;
+                            color: Tokens.accent;
+                            font-size: Tokens.font-size-caption;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // Downloaded Tracks List
+            VerticalLayout {
+                spacing: 10px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+
+                    Text {
+                        text: "Downloaded Songs (" + root.downloaded-tracks.length + ")";
+                        color: Tokens.text-primary;
+                        font-size: Tokens.font-size-title;
+                        font-weight: Tokens.font-weight-bold;
+                    }
+
+                    Text {
+                        text: root.total-size;
+                        color: Tokens.text-tertiary;
+                        font-size: Tokens.font-size-caption;
+                        vertical-alignment: center;
+                    }
+                }
+
+                if root.downloaded-tracks.length > 0: VerticalLayout {
+                    spacing: 2px;
+
+                    for track[idx] in root.downloaded-tracks: TrackRow {
+                        index: idx + 1;
+                        track-id: track.id;
+                        title: track.title;
+                        artist: track.artist;
+                        album: track.album;
+                        duration: track.duration;
+                        is-active: track.id == root.active-track-id;
+                        is-explicit: track.is_explicit;
+
+                        play => { root.play-track(track.id); }
+                    }
+                }
+
+                if root.downloaded-tracks.length == 0: Rectangle {
+                    height: 160px;
+                    border-radius: Tokens.radius-large;
+                    background: Tokens.card-bg;
+
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 8px;
+
+                        DownloadsIcon {
+                            width: 36px;
+                            height: 36px;
+                            icon-color: Tokens.text-quaternary;
+                            x: (parent.width - self.width) / 2;
+                        }
+
+                        Text {
+                            text: "No downloaded music yet";
+                            color: Tokens.text-secondary;
+                            font-size: Tokens.font-size-body;
+                            horizontal-alignment: center;
+                        }
+
+                        Text {
+                            text: "Songs downloaded for offline listening will appear here.";
+                            color: Tokens.text-tertiary;
+                            font-size: Tokens.font-size-caption;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

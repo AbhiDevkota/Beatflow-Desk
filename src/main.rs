@@ -2,8 +2,10 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use slint::ComponentHandle;
 use beatflow::platform::single_instance::check_and_forward;
 use beatflow::services::network::start_loopback_server;
+use beatflow::{AppWindow, UiBridge};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -29,6 +31,17 @@ async fn main() -> anyhow::Result<()> {
         log::info!("Received forwarded argument from secondary instance: {}", arg);
     })));
 
-    log::info!("BeatFlow Core Engine initialized successfully.");
+    let app = AppWindow::new()?;
+    let _bridge = UiBridge::new(app.as_weak());
+
+    // Setup window controls
+    app.on_window_close(move || {
+        slint::quit_event_loop().unwrap_or(());
+    });
+
+    log::info!("BeatFlow Native UI shell ready.");
+    app.run()?;
+
     Ok(())
 }
+

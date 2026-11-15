@@ -1,0 +1,194 @@
+// BeatFlow Search View
+
+import { Tokens } from "../tokens.slint";
+import { SearchIcon, CloseIcon } from "../icons.slint";
+import { TrackRow } from "../components/track_row.slint";
+import { HomeTrackData } from "home_view.slint";
+
+export component SearchView inherits Rectangle {
+    in-out property <string> query: "";
+    in-out property <[HomeTrackData]> search-results: [];
+    in-out property <[string]> suggestions: [];
+    in-out property <bool> is-searching: false;
+    in-out property <string> active-track-id: "";
+
+    callback search-query-changed(string);
+    callback submit-search(string);
+    callback play-result(string);
+    callback select-suggestion(string);
+
+    background: transparent;
+
+    VerticalLayout {
+        padding-left: Tokens.content-gutter;
+        padding-right: Tokens.content-gutter;
+        padding-top: 20px;
+        spacing: 20px;
+
+        // Search Input Bar
+        search_box := Rectangle {
+            height: 44px;
+            max-width: 540px;
+            border-radius: 12px;
+            background: Tokens.card-bg;
+            border-color: input.has-focus ? Tokens.accent : Tokens.border-subtle;
+            border-width: 1.5px;
+
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 14px;
+                spacing: 12px;
+                alignment: start;
+
+                SearchIcon {
+                    width: 18px;
+                    height: 18px;
+                    icon-color: input.has-focus ? Tokens.accent : Tokens.text-tertiary;
+                    y: (parent.height - self.height) / 2;
+                }
+
+                input := TextInput {
+                    text <=> root.query;
+                    color: Tokens.text-primary;
+                    font-size: Tokens.font-size-body;
+                    vertical-alignment: center;
+                    single-line: true;
+
+                    edited => {
+                        root.search-query-changed(self.text);
+                    }
+                    accepted => {
+                        root.submit-search(self.text);
+                    }
+                }
+
+                if root.query != "": Rectangle {
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 10px;
+                    background: Tokens.nav-item-selected;
+                    y: (parent.height - self.height) / 2;
+
+                    CloseIcon {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        width: 10px;
+                        height: 10px;
+                        icon-color: Tokens.text-secondary;
+                    }
+
+                    TouchArea {
+                        clicked => {
+                            root.query = "";
+                            root.search-query-changed("");
+                        }
+                    }
+                }
+            }
+        }
+
+        // Suggestions Dropdown (if any and query not empty)
+        if root.suggestions.length > 0 && root.search-results.length == 0: VerticalLayout {
+            spacing: 4px;
+            max-width: 540px;
+
+            Text {
+                text: "Suggestions";
+                color: Tokens.text-tertiary;
+                font-size: Tokens.font-size-caption;
+                font-weight: Tokens.font-weight-semibold;
+            }
+
+            for sug[idx] in root.suggestions: Rectangle {
+                height: 36px;
+                border-radius: Tokens.radius-medium;
+                background: sug_touch.has-hover ? Tokens.nav-item-hover : transparent;
+
+                HorizontalLayout {
+                    padding-left: 12px;
+                    spacing: 10px;
+
+                    SearchIcon {
+                        width: 14px;
+                        height: 14px;
+                        icon-color: Tokens.text-tertiary;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    Text {
+                        text: sug;
+                        color: Tokens.text-secondary;
+                        font-size: Tokens.font-size-body;
+                        vertical-alignment: center;
+                    }
+                }
+
+                sug_touch := TouchArea {
+                    clicked => {
+                        root.query = sug;
+                        root.select-suggestion(sug);
+                    }
+                }
+            }
+        }
+
+        // Search Results List
+        if root.search-results.length > 0: Flickable {
+            content-height: root.search-results.length * 52px + 40px;
+
+            VerticalLayout {
+                spacing: 2px;
+                padding-bottom: 120px;
+
+                Text {
+                    text: "Top Songs";
+                    color: Tokens.text-primary;
+                    font-size: Tokens.font-size-title;
+                    font-weight: Tokens.font-weight-bold;
+                }
+
+                for track[idx] in root.search-results: TrackRow {
+                    index: idx + 1;
+                    track-id: track.id;
+                    title: track.title;
+                    artist: track.artist;
+                    album: track.album;
+                    duration: track.duration;
+                    is-active: track.id == root.active-track-id;
+                    is-explicit: track.is_explicit;
+
+                    play => { root.play-result(track.id); }
+                }
+            }
+        }
+
+        // Empty state when no query
+        if root.query == "": VerticalLayout {
+            alignment: center;
+            spacing: 10px;
+            padding-top: 60px;
+
+            SearchIcon {
+                width: 48px;
+                height: 48px;
+                icon-color: Tokens.text-quaternary;
+                x: (parent.width - self.width) / 2;
+            }
+
+            Text {
+                text: "Search for songs, artists, albums, or playlists";
+                color: Tokens.text-secondary;
+                font-size: Tokens.font-size-h3;
+                font-weight: Tokens.font-weight-medium;
+                horizontal-alignment: center;
+            }
+
+            Text {
+                text: "Powered by YouTube Music & Hi-Res lossless addons";
+                color: Tokens.text-tertiary;
+                font-size: Tokens.font-size-caption;
+                horizontal-alignment: center;
+            }
+        }
+    }
+}

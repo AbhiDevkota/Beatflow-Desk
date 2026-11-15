@@ -1,0 +1,281 @@
+// BeatFlow Side Panel (Lyrics & Queue)
+
+import { Tokens } from "../tokens.slint";
+import { CloseIcon, PlayIcon } from "../icons.slint";
+import { TrackRow } from "track_row.slint";
+
+export struct QueueItemData {
+    id: string,
+    title: string,
+    artist: string,
+    duration: string,
+}
+
+export struct LyricLineData {
+    time_ms: int,
+    text: string,
+    is_active: bool,
+}
+
+export component SidePanel inherits Rectangle {
+    in-out property <bool> is-open: false;
+    in-out property <int> active-tab: 0; // 0 = Lyrics, 1 = Up Next
+    in-out property <[LyricLineData]> lyrics-lines: [];
+    in-out property <[QueueItemData]> queue-items: [];
+    in-out property <bool> has-synced-lyrics: false;
+    in-out property <string> plain-lyrics: "";
+
+    callback close();
+    callback select-tab(int);
+    callback play-queue-index(int);
+    callback clear-queue();
+    callback seek-lyric-time(int);
+
+    width: Tokens.side-panel-width;
+    background: Tokens.side-panel-bg;
+    border-color: Tokens.border-subtle;
+    border-width: 1px;
+    clip: true;
+
+    VerticalLayout {
+        padding: 16px;
+        spacing: 12px;
+
+        // Top Bar: Segmented Switch & Close Button
+        HorizontalLayout {
+            alignment: space-between;
+
+            // Segmented Tab Switch (Lyrics | Up Next)
+            Rectangle {
+                width: 180px;
+                height: 30px;
+                border-radius: 15px;
+                background: Tokens.nav-item-selected;
+
+                HorizontalLayout {
+                    padding: 2px;
+                    spacing: 2px;
+
+                    // Lyrics Tab
+                    Rectangle {
+                        border-radius: 13px;
+                        background: root.active-tab == 0 ? Tokens.card-bg : transparent;
+
+                        Text {
+                            text: "Lyrics";
+                            color: root.active-tab == 0 ? Tokens.text-primary : Tokens.text-secondary;
+                            font-size: Tokens.font-size-body;
+                            font-weight: root.active-tab == 0 ? Tokens.font-weight-semibold : Tokens.font-weight-regular;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        TouchArea {
+                            clicked => { root.select-tab(0); }
+                        }
+                    }
+
+                    // Up Next Tab
+                    Rectangle {
+                        border-radius: 13px;
+                        background: root.active-tab == 1 ? Tokens.card-bg : transparent;
+
+                        Text {
+                            text: "Up Next";
+                            color: root.active-tab == 1 ? Tokens.text-primary : Tokens.text-secondary;
+                            font-size: Tokens.font-size-body;
+                            font-weight: root.active-tab == 1 ? Tokens.font-weight-semibold : Tokens.font-weight-regular;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        TouchArea {
+                            clicked => { root.select-tab(1); }
+                        }
+                    }
+                }
+            }
+
+            // Close button
+            Rectangle {
+                width: 28px;
+                height: 28px;
+                border-radius: 14px;
+                background: close_touch.has-hover ? Tokens.nav-item-hover : transparent;
+
+                CloseIcon {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    icon-color: Tokens.text-secondary;
+                    width: 12px;
+                    height: 12px;
+                }
+
+                close_touch := TouchArea {
+                    clicked => { root.close(); }
+                }
+            }
+        }
+
+        // Tab Content
+        if root.active-tab == 0: VerticalLayout {
+            // Lyrics View
+            if root.lyrics-lines.length > 0: Flickable {
+                content-height: root.lyrics-lines.length * 44px;
+
+                VerticalLayout {
+                    spacing: 8px;
+                    padding-top: 10px;
+                    padding-bottom: 20px;
+
+                    for line[idx] in root.lyrics-lines: Rectangle {
+                        height: 38px;
+                        border-radius: 6px;
+                        background: line.is_active ? Tokens.nav-item-selected : (lyric_touch.has-hover ? Tokens.nav-item-hover : transparent);
+
+                        Text {
+                            text: line.text;
+                            color: line.is_active ? Tokens.text-primary : Tokens.text-tertiary;
+                            font-size: line.is_active ? 16px : 14px;
+                            font-weight: line.is_active ? Tokens.font-weight-bold : Tokens.font-weight-medium;
+                            vertical-alignment: center;
+                            x: 8px;
+                        }
+
+                        lyric_touch := TouchArea {
+                            clicked => { root.seek-lyric-time(line.time_ms); }
+                        }
+                    }
+                }
+            }
+
+            if root.lyrics-lines.length == 0: Rectangle {
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 8px;
+
+                    Text {
+                        text: "No Lyrics Available";
+                        color: Tokens.text-secondary;
+                        font-size: Tokens.font-size-h3;
+                        font-weight: Tokens.font-weight-semibold;
+                        horizontal-alignment: center;
+                    }
+
+                    Text {
+                        text: "Lyrics for this track couldn't be found.";
+                        color: Tokens.text-tertiary;
+                        font-size: Tokens.font-size-caption;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+        }
+
+        if root.active-tab == 1: VerticalLayout {
+            // Queue View Header
+            HorizontalLayout {
+                alignment: space-between;
+                padding-bottom: 6px;
+
+                Text {
+                    text: "Playing Next";
+                    color: Tokens.text-secondary;
+                    font-size: Tokens.font-size-caption;
+                    font-weight: Tokens.font-weight-semibold;
+                }
+
+                Text {
+                    text: "Clear";
+                    color: Tokens.accent;
+                    font-size: Tokens.font-size-caption;
+                    font-weight: Tokens.font-weight-semibold;
+
+                    TouchArea {
+                        clicked => { root.clear-queue(); }
+                    }
+                }
+            }
+
+            if root.queue-items.length > 0: Flickable {
+                content-height: root.queue-items.length * 48px;
+
+                VerticalLayout {
+                    spacing: 4px;
+
+                    for item[idx] in root.queue-items: Rectangle {
+                        height: 44px;
+                        border-radius: Tokens.radius-medium;
+                        background: q_touch.has-hover ? Tokens.nav-item-hover : transparent;
+
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 10px;
+
+                            Text {
+                                text: idx + 1;
+                                color: Tokens.text-tertiary;
+                                font-size: Tokens.font-size-caption;
+                                vertical-alignment: center;
+                                width: 16px;
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: item.title;
+                                    color: Tokens.text-primary;
+                                    font-size: Tokens.font-size-body;
+                                    font-weight: Tokens.font-weight-medium;
+                                    overflow: elide;
+                                }
+                                Text {
+                                    text: item.artist;
+                                    color: Tokens.text-secondary;
+                                    font-size: Tokens.font-size-caption;
+                                    overflow: elide;
+                                }
+                            }
+
+                            Rectangle { }
+
+                            Text {
+                                text: item.duration;
+                                color: Tokens.text-tertiary;
+                                font-size: Tokens.font-size-caption;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        q_touch := TouchArea {
+                            clicked => { root.play-queue-index(idx); }
+                        }
+                    }
+                }
+            }
+
+            if root.queue-items.length == 0: Rectangle {
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 8px;
+
+                    Text {
+                        text: "Queue is Empty";
+                        color: Tokens.text-secondary;
+                        font-size: Tokens.font-size-h3;
+                        font-weight: Tokens.font-weight-semibold;
+                        horizontal-alignment: center;
+                    }
+
+                    Text {
+                        text: "Add songs or start an album to populate.";
+                        color: Tokens.text-tertiary;
+                        font-size: Tokens.font-size-caption;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}

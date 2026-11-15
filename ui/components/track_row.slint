@@ -1,0 +1,195 @@
+// Reusable Track Row Component
+
+import { Tokens } from "../tokens.slint";
+import { PlayIcon, StarIcon, StarFilledIcon, MoreIcon } from "../icons.slint";
+
+export component TrackRow inherits Rectangle {
+    in-out property <int> index: 1;
+    in-out property <string> track-id: "";
+    in-out property <string> title: "";
+    in-out property <string> artist: "";
+    in-out property <string> album: "";
+    in-out property <string> duration: "0:00";
+    in-out property <bool> is-active: false;
+    in-out property <bool> is-favorite: false;
+    in-out property <bool> is-explicit: false;
+    in-out property <bool> show-artwork: false;
+    in-out property <image> artwork-image;
+
+    callback play();
+    callback toggle-favorite();
+    callback show-menu();
+
+    height: 48px;
+    border-radius: Tokens.radius-medium;
+    background: root.is-active ? Tokens.nav-item-selected : (touch.has-hover ? Tokens.nav-item-hover : transparent);
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 12px;
+        alignment: space-between;
+
+        // Left: Index / Play & Title
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: start;
+
+            // Index / Play toggle
+            Rectangle {
+                width: 24px;
+                height: 48px;
+
+                if !touch.has-hover && !root.is-active: Text {
+                    text: root.index;
+                    color: Tokens.text-tertiary;
+                    font-size: Tokens.font-size-body;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+
+                if touch.has-hover || root.is-active: PlayIcon {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    icon-color: root.is-active ? Tokens.accent : #ffffff;
+                    width: 14px;
+                    height: 14px;
+                }
+            }
+
+            // Optional artwork thumbnail
+            if root.show-artwork: Rectangle {
+                width: 36px;
+                height: 36px;
+                border-radius: Tokens.radius-small;
+                background: #26262c;
+                y: (parent.height - self.height) / 2;
+                clip: true;
+
+                Image {
+                    source: root.artwork-image;
+                    width: 100%;
+                    height: 100%;
+                }
+            }
+
+            // Title and Artist
+            VerticalLayout {
+                alignment: center;
+                spacing: 2px;
+
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: start;
+
+                    Text {
+                        text: root.title;
+                        color: root.is-active ? Tokens.accent : Tokens.text-primary;
+                        font-size: Tokens.font-size-body;
+                        font-weight: root.is-active ? Tokens.font-weight-semibold : Tokens.font-weight-medium;
+                        overflow: elide;
+                    }
+
+                    if root.is-explicit: Rectangle {
+                        width: 14px;
+                        height: 14px;
+                        border-radius: 2px;
+                        background: Tokens.text-tertiary;
+                        y: (parent.height - self.height) / 2;
+
+                        Text {
+                            text: "E";
+                            color: Tokens.page-bg;
+                            font-size: 9px;
+                            font-weight: Tokens.font-weight-bold;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+                }
+
+                Text {
+                    text: root.artist;
+                    color: Tokens.text-secondary;
+                    font-size: Tokens.font-size-caption;
+                    overflow: elide;
+                }
+            }
+        }
+
+        // Center / Right: Album, Duration, Actions
+        HorizontalLayout {
+            spacing: 16px;
+            alignment: end;
+
+            if root.album != "": Text {
+                text: root.album;
+                color: Tokens.text-tertiary;
+                font-size: Tokens.font-size-body;
+                overflow: elide;
+                vertical-alignment: center;
+                max-width: 180px;
+            }
+
+            // Favorite button
+            fav_btn := Rectangle {
+                width: 28px;
+                height: 28px;
+                y: (parent.height - self.height) / 2;
+
+                if root.is-favorite: StarFilledIcon {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    icon-color: Tokens.accent-gold;
+                    width: 14px;
+                    height: 14px;
+                }
+
+                if !root.is-favorite && touch.has-hover: StarIcon {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    icon-color: Tokens.text-tertiary;
+                    width: 14px;
+                    height: 14px;
+                }
+
+                fav_touch := TouchArea {
+                    clicked => { root.toggle-favorite(); }
+                }
+            }
+
+            // Duration
+            Text {
+                text: root.duration;
+                color: Tokens.text-tertiary;
+                font-size: Tokens.font-size-caption;
+                vertical-alignment: center;
+                min-width: 36px;
+                horizontal-alignment: right;
+            }
+
+            // Menu button
+            menu_btn := Rectangle {
+                width: 24px;
+                height: 24px;
+                y: (parent.height - self.height) / 2;
+
+                if touch.has-hover: MoreIcon {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    icon-color: Tokens.text-secondary;
+                    width: 14px;
+                    height: 14px;
+                }
+
+                menu_touch := TouchArea {
+                    clicked => { root.show-menu(); }
+                }
+            }
+        }
+    }
+
+    touch := TouchArea {
+        clicked => { root.play(); }
+    }
+}

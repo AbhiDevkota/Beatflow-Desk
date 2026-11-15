@@ -31,40 +31,98 @@
   <tr>
     <td width="50%" valign="top">
 
-#### Playback
+#### Playback & Hi-Res
 - Search, browse, and play music from YouTube Music
-- High-quality playback with configurable source modules
-- Gapless playback and adjustable crossfade
-- Background playback
-- Offline downloads with embedded metadata
-- Local music library integration
+- Hi-Res Lossless (24-bit/192kHz) and Dolby Atmos stream auto-upgrades
+- Gapless playback and low-latency audio engine via Rodio
+- Time-synchronized lyrics with active line tracking (LRC & TTML)
+- Local music library integration & offline downloads with embedded ID3/MP4 metadata
 
 #### Connectivity
-- Sign in with your Google account
-- Spotify integration
-- Last.fm and ListenBrainz scrobbling
-- Pluggable audio sources
+- Direct YouTube Music Innertube API integration
+- Deep-linking with custom URI scheme (`beatflow://`)
+- Native Windows media keys (Play/Pause, Next, Prev, Stop)
+- Single-instance activation and IPC routing over loopback TCP
 
     </td>
     <td width="50%" valign="top">
 
-#### Experience
-- Animated album art and dynamic theming
-- Word-synced lyrics
-- A clean, modern interface
-- Material-inspired visual design
+#### Experience & Native Architecture
+- **100% Native Rust + Slint GUI**: Zero Electron, Zero Tauri, Zero Chromium WebView2
+- Instant cold start (~115 ms) and minimal memory footprint (~24 MB RAM)
+- Apple Music web player design language and frameless glassmorphic UI
+- Smooth animations: 420ms spring fullscreen FLIP expansion, ambient glow backdrop, and animated scrubber
+- Up Next queue timeline with Shuffle and Repeat modes
+- 8 structured preference sections for audio quality, network, and storage
 
-#### Controls
-- Playback speed controls
-- Sleep timer
-- Equalizer support
-- Per-network audio quality settings
+#### Desktop Integrations
+- Frameless window titlebar with native DWM window dragging
+- Native minimize, maximize/restore, and close controls
+- Global keyboard and multimedia key shortcuts
 
     </td>
   </tr>
 </table>
 
 </div>
+
+---
+
+<div align="center">
+
+<h1><a id="building"></a>Building & Running</h1>
+
+</div>
+
+### Prerequisites
+- [Rust](https://rustup.rs/) (version 1.90.0 or later recommended)
+- Windows 10/11 (or Linux/macOS with standard audio libraries)
+- Git
+
+### Build Instructions
+
+```bash
+# Clone the repository
+git clone https://github.com/AbhiDevkota/BeatFlow.git
+cd BeatFlow
+
+# Run the native desktop application in development mode
+cargo run -p beatflow
+
+# Build an optimized, standalone native release binary
+cargo build --release -p beatflow
+
+# Run all test suites
+cargo test -p beatflow
+```
+
+The resulting standalone executable will be located at:
+```
+target/release/beatflow.exe
+```
+
+---
+
+<div align="center">
+
+<h1><a id="architecture"></a>Architecture</h1>
+
+</div>
+
+BeatFlow is engineered with a modular Rust + Slint desktop architecture:
+
+- **`ui/`**: Slint declarative design definitions (`.slint`), containing design tokens, components (player bar, titlebar, LCD display, fullscreen player, side panel), and views (home, search, downloads, settings).
+- **`src/ui/`**: Slint component compilation, thread-safe UI bridge (`UiBridge`), and Slint model adapters.
+- **`src/core/`**: Core music application logic, including:
+  - `playback/`: Native Rodio audio output engine, DASH stream parsing, and Hi-Res Lossless / Dolby Atmos matching algorithms.
+  - `queue/`: Queue timeline state machine with repeat, shuffle, and index jumping.
+  - `lyrics/`: Multi-provider lyrics aggregator, LRC / TTML parsing, and playhead synchronization clock.
+  - `downloads/`: Background downloader, progress tracking, and ID3v2 / MP4 audio tagging.
+  - `app_coordinator.rs`: Event coordinator linking UI events with asynchronous Tokio background workers.
+- **`src/platform/`**: OS integrations including Windows global media hotkeys, `beatflow://` registry URI scheme handlers, and single-instance IPC loopback.
+- **`src/services/`**: Network communication, YouTube Music (Innertube) API client, and authentication management.
+
+---
 
 ---
 

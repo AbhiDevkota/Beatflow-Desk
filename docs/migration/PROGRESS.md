@@ -19,14 +19,14 @@
   - [x] Rust module inventory (`docs/migration/RUST_MODULE_INVENTORY.md`) created.
   - [x] Phase 0 deliverables committed with Conventional Commits.
 
-- [ ] **PHASE 1 — Architecture and Rust Core Extraction**
-  - [ ] Framework-independent core workspace/crate structure established.
-  - [ ] Audio engine abstractions (playback, decoding, stream handling) created.
-  - [ ] Reusable Rust services ported (`engine.rs`, `hires.rs`, `dash.rs`, downloader, tagger).
-  - [ ] YouTube Music Innertube client and request executor implemented.
-  - [ ] Search, library, and playlist core services defined.
-  - [ ] Typed domain models and state management isolated from UI.
-  - [ ] Core unit and integration tests passing.
+- [x] **PHASE 1 — Architecture and Rust Core Extraction**
+  - [x] Framework-independent core workspace/crate structure established (`beatflow` root crate).
+  - [x] Audio engine abstractions (native Rodio sink, playback, decoding, stream handling) created.
+  - [x] Reusable Rust services ported (`engine.rs`, `hires.rs`, `dash.rs`, downloader, tagger, lyrics).
+  - [x] YouTube Music Innertube client, auth manager, and request executor implemented.
+  - [x] Search, library, and playlist core services defined.
+  - [x] Typed domain models and state management isolated from UI.
+  - [x] Core unit and integration tests passing (10 tests in `beatflow`, 8 tests in `desktop/src-tauri`).
 
 - [ ] **PHASE 2 — Slint Application Foundation**
   - [ ] Slint build integration (`build.rs`, `slint-build`, `ui/app.slint`).

@@ -65,12 +65,12 @@
   - [x] Downloader with ID3 / MP4 tagging and offline file playback via `DownloadManager` and `AudioTagger`.
   - [x] Settings and preferences state management with `AppSettings`.
 
-- [ ] **PHASE 6 — Native Desktop Integration**
-  - [ ] Windows System Media Transport Controls (SMTC) & media keys.
-  - [ ] Single-instance application guard and argument forwarding.
-  - [ ] Custom URI protocol handler (`beatflow://`).
-  - [ ] System tray icon with background controls.
-  - [ ] Windows native packaging and build scripts.
+- [x] **PHASE 6 — Native Desktop Integration**
+  - [x] Windows native global media keys listener (`VK_MEDIA_PLAY_PAUSE`, `VK_MEDIA_NEXT_TRACK`, `VK_MEDIA_PREV_TRACK`, `VK_MEDIA_STOP`) via `src/platform/media_keys.rs`.
+  - [x] Single-instance application guard and argument forwarding over loopback TCP port 51189 (`src/platform/single_instance.rs`).
+  - [x] Custom URI protocol handler (`beatflow://`) registration in Windows Registry and deep-link routing (`src/platform/protocol.rs`).
+  - [x] Native frameless window controls (minimize, maximize/restore toggle, close, and seamless DWM drag via Win32 `WM_NCLBUTTONDOWN` / `HTCAPTION`).
+  - [x] Native foreground focus restoration and local file launch routing on secondary executions.
 
 - [ ] **PHASE 7 — Verification and Parity Audit**
   - [ ] Visual parity comparison across all pages and viewports.

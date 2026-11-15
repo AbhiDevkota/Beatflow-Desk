@@ -627,6 +627,7 @@ dependencies = [
  "unicode-normalization",
  "url",
  "urlencoding",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

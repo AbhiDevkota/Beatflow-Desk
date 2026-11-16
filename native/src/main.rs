@@ -17,6 +17,8 @@ mod backend;
 use backend::audio::{self, AudioCmd, AudioEvent, AudioHandle};
 use backend::innertube;
 use backend::stream::{self, Ranging, Shared};
+use backend::ytm;
+use backend::ytmapi::Api;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = AppWindow::new()?;
@@ -289,7 +291,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    app.show()?;
+    // Search: wire Search global to ytm.
+let api = Arc::new(Api::new(std::env::temp_dir().as_path()));
+let http = reqwest::Client::new();
+let weak = app.as_weak();
+let api2 = api.clone();
+let http2 = http.clone();
+app.global::<Search>().on_search(move |q| {
+    let weak = weak.clone();
+    let api = api2.clone();
+    let http = http2.clone();
+    let query = q.to_string();
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let _ = rt.block_on(api.ensure_visitor());
+        let visitor = rt.block_on(api.visitor_data(false)).unwrap_or_default();
+        let results = rt.block_on(ytm::search_songs(&api, &query, false)).unwrap_or_default();
+        // Convert to Slint SearchResult
+let slint_results: Vec<SearchResult> = results
+            .iter()
+            .map(|t| SearchResult {
+                title: t.title.clone().into(),
+                artist: t.artist_line().into(),
+                video_id: t.id.clone().into(),
+            })
+            .collect();
+        let _ = slint::invoke_from_event_loop(move || {
+            if let Some(app) = weak.upgrade() {
+                let search = app.global::<Search>();
+                search.set_query(query.into());
+                let model = slint::ModelRc::new(slint::VecModel::from(slint_results));
+                search.set_results(model);
+            }
+        });
+    });
+});
+
+app.show()?;
 
     let chrome_weak = app.as_weak();
     slint::invoke_from_event_loop(move || {

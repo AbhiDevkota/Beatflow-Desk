@@ -5,8 +5,9 @@
 //
 // Components are declared before their use.
 
+import { SearchPage, SearchResult } from "search.slint";
 import { Theme } from "theme.slint";
-import { Player, Ui } from "state.slint";
+import { Player, Ui, Search } from "state.slint";
 import { AppIcon } from "icons.slint";
 
 // A single square artwork card (180x180, radius 12) with a title + subtitle
@@ -139,7 +140,7 @@ export component PageViewport inherits Rectangle {
     background: transparent;
 
     if Ui.active-route == "Home": HomePage { width: 100%; height: 100%; }
-    if Ui.active-route == "Search": PlaceholderPage { width: 100%; height: 100%; label: "Search"; }
+    if Ui.active-route == "Search": SearchPage { width: 100%; height: 100%; results: Search.results; query <=> Search.query; search(q) => { Search.search(q); } }
     if Ui.active-route == "New": PlaceholderPage { width: 100%; height: 100%; label: "New"; }
     if Ui.active-route == "Library": PlaceholderPage { width: 100%; height: 100%; label: "Library"; }
     if Ui.active-route == "Downloads": PlaceholderPage { width: 100%; height: 100%; label: "Downloads"; }

@@ -3,6 +3,8 @@
 // src/main.rs until the audio engine lands (blueprint Stage 1); the shape is
 // the one the later stages will bind to.
 
+import { SearchResult } from "search.slint";
+
 // state/player.ts
 export global Player {
     // nowPlaying
@@ -41,7 +43,7 @@ export global Player {
     callback set-volume(float);
     callback toggle-mute();
     // One wheel notch over the volume control, as the raw deltaY sign
-    // (VolumeControl.tsx's useVolumeWheel → wheelVolume.ts).
+    // (VolumeControl.tsx's useVolumeWheel + wheelVolume.ts).
     callback wheel-volume(float);
 }
 
@@ -51,6 +53,13 @@ export global Ui {
     in-out property <string> active-route: "Home";
     in-out property <bool> maximized: false;
     // state/ui.ts's sidePanel: "" = closed, "lyrics" / "up-next". The drawer
-    // itself is Stage 4 — for now the pill's toggles only carry the state.
+    // itself is Stage 4 - for now the pill's toggles only carry the state.
     in-out property <string> side-panel: "";
+}
+
+// search state
+export global Search {
+    in-out property <[SearchResult]> results;
+    in-out property <string> query: "";
+    callback search(string);
 }

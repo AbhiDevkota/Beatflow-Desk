@@ -14,6 +14,8 @@ use slint::{ComponentHandle, Timer, TimerMode};
 
 slint::include_modules!();
 
+mod backend;
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = AppWindow::new()?;
 

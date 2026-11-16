@@ -1,0 +1,24 @@
+# BeatFlow's native shell — a standalone Slint crate that ports the desktop
+# app's UI off the web stack, one component at a time (see native/README.md
+# and .claude/NATIVE_MIGRATION_BLUEPRINT.md). Playback is mocked here; the
+# audio engine arrives with the blueprint's Stage 1.
+[package]
+name = "beatflow-native"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+description = "BeatFlow's native (Slint) desktop shell — UI skeleton"
+publish = false
+
+[dependencies]
+slint = { version = "1.18.1", features = ["raw-window-handle-06"] }
+# raw-window-handle is re-exposed by slint with the feature above, but the
+# HWND plumbing below names the types directly.
+raw-window-handle = "0.6"
+window-vibrancy = "0.8"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Dwm"] }
+
+[build-dependencies]
+slint-build = "1.18.1"

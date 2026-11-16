@@ -1,0 +1,56 @@
+// The native shell's state, mirroring the Zustand stores the web shell reads
+// (state/player.ts, state/ui.ts) as Slint globals. Playback here is mocked in
+// src/main.rs until the audio engine lands (blueprint Stage 1); the shape is
+// the one the later stages will bind to.
+
+// state/player.ts
+export global Player {
+    // nowPlaying
+    in-out property <bool> has-track: true;
+    in-out property <string> title: "";
+    in-out property <string> artist: "";
+
+    // status: 0 = paused, 1 = playing, 2 = buffering/loading (BeatLoader)
+    in-out property <int> status: 0;
+
+    // progress is a 0..1 fraction of duration; elapsed is seconds. The
+    // elapsed/remaining labels format from `progress` inside the Lcd, the way
+    // useScrubber.ts's draw loop writes them each frame.
+    in-out property <float> progress: 0;
+    in-out property <float> elapsed: 0;
+    in-out property <float> duration: 0;
+
+    // transport toggles
+    in-out property <bool> shuffle: false;
+    in-out property <int> repeat: 0; // 0 off, 1 all, 2 one
+    in-out property <float> volume: 1;
+    in-out property <bool> muted: false;
+    // PlayerBar.tsx's hasNext (queue, repeat, autoplay); mocked true.
+    in-out property <bool> has-next: true;
+
+    // 0..1 phase of the BeatLoader's 950ms alternate pulse (main.rs drives it
+    // while status == 2).
+    in-out property <float> beat-phase: 0;
+
+    callback toggle-play();
+    callback next();
+    callback previous();
+    callback toggle-shuffle();
+    callback cycle-repeat();
+    callback seeked(float);      // a scrubber drag landed on a fraction
+    callback set-volume(float);
+    callback toggle-mute();
+    // One wheel notch over the volume control, as the raw deltaY sign
+    // (VolumeControl.tsx's useVolumeWheel → wheelVolume.ts).
+    callback wheel-volume(float);
+}
+
+// state/ui.ts (shell-relevant slice)
+export global Ui {
+    // The active page's sidebar label; pages themselves arrive in Stage 4.
+    in-out property <string> active-route: "Home";
+    in-out property <bool> maximized: false;
+    // state/ui.ts's sidePanel: "" = closed, "lyrics" / "up-next". The drawer
+    // itself is Stage 4 — for now the pill's toggles only carry the state.
+    in-out property <string> side-panel: "";
+}

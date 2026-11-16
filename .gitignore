@@ -54,3 +54,6 @@ AGENTS.md
 
 # Node dependencies
 node_modules/
+
+# Rust
+target/

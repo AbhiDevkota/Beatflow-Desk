@@ -7,7 +7,7 @@
 // font collection, and the window's default family is DM Sans (tokens.css).
 
 import { Theme } from "theme.slint";
-import { Player, Ui } from "state.slint";
+import { Player, Ui, Search } from "state.slint";
 import { Sidebar } from "sidebar.slint";
 import { PlayerBar } from "player-bar.slint";
 import { PageViewport } from "pages.slint";
@@ -21,7 +21,7 @@ import "fonts/DMSans-Bold.ttf";
 
 // Re-exported so the globals appear in the generated Rust API (main.rs
 // reads/writes them through app.global::<Player>() / ::<Ui>()).
-export { Player, Ui }
+export { Player, Ui, Search }
 
 export component AppWindow inherits Window {
     title: "BeatFlow";

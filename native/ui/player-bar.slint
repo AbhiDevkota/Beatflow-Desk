@@ -238,10 +238,10 @@ component VolumeControl inherits Rectangle {
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
             // muted || level == 0 → VolumeX; < 0.5 → Volume1; else Volume2
-            source: root.level == 0.0 ? @image-url("icons/volume-0.svg")
+            source: root.level == 0.0 ? @image-url("icons/volume-x.svg")
                 : root.level < 0.5 ? @image-url("icons/volume-1.svg")
                 : @image-url("icons/volume-2.svg");
-            size: 20px;
+            size: 18px;
             tint: Player.muted ? Theme.key-color : Theme.system-primary;
         }
 
@@ -331,7 +331,7 @@ export component PlayerBar inherits Rectangle {
             }
 
             prev-btn := ControlButton {
-                x: 56px;
+                x: 58px;
                 y: 14px;
                 icon-size: 26px;
                 source: @image-url("icons/backward.svg");
@@ -377,7 +377,7 @@ export component PlayerBar inherits Rectangle {
 
             // ---- #miniplayer-actions: 123px = 4 × w-6 + 3 × gap-[9px] ---
             menu-btn := ControlButton {
-                x: 0px;
+                x: root.pill-width - 139px;
                 y: 14px;
                 box-width: 24px;
                 box-radius: 4px;
@@ -389,7 +389,7 @@ export component PlayerBar inherits Rectangle {
             }
 
             lyrics-btn := ControlButton {
-                x: 33px;
+                x: root.pill-width - 106px;
                 y: 14px;
                 box-width: 24px;
                 box-radius: 4px;
@@ -402,7 +402,7 @@ export component PlayerBar inherits Rectangle {
             }
 
             up-next-btn := ControlButton {
-                x: 66px;
+                x: root.pill-width - 73px;
                 y: 14px;
                 box-width: 24px;
                 box-radius: 4px;
@@ -414,7 +414,7 @@ export component PlayerBar inherits Rectangle {
             }
 
             volume-ctl := VolumeControl {
-                x: 99px;
+                x: root.pill-width - 40px;
                 y: 14px;
             }
         }

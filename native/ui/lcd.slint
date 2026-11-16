@@ -49,6 +49,9 @@ export component Lcd inherits Rectangle {
         y: 0;
         height: parent.height - 6px; // pb-1.5
         spacing: 8px;                // gap-x-2
+        padding-left: 16px;
+        padding-right: 16px;
+        cross-axis-alignment: center;
 
         // ---- #miniplayer-artwork: opens the full-screen player (later) ----
         Rectangle {
@@ -87,6 +90,7 @@ export component Lcd inherits Rectangle {
 
             VerticalLayout {
                 spacing: 0;
+                alignment: center;
 
                 // title: type-body-emphasized (600 13px/16px), truncates
                 Text {

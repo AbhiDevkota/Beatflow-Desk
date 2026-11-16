@@ -56,6 +56,7 @@ component NavDelegate inherits Rectangle {
             padding-left: 4px;  // p-1
             padding-right: 4px;
             spacing: 8px;       // gap-2
+            cross-axis-alignment: center;
 
             AppIcon {
                 width: 24px;
@@ -107,7 +108,10 @@ component GooglePill inherits Rectangle {
 
     HorizontalLayout {
         alignment: center;
+        cross-axis-alignment: center;
         spacing: 8px;
+        padding-left: 14px;
+        padding-right: 14px;
 
         // The Google G keeps its brand colours — no colorize.
         Image {
@@ -197,6 +201,8 @@ export component Sidebar inherits Rectangle {
                 padding-left: 20px;
                 padding-right: 20px;
                 spacing: 8px;
+                alignment: start;
+                cross-axis-alignment: center;
 
                 AppIcon {
                     source: @image-url("icons/logo-mark.svg");

@@ -1,73 +1,156 @@
-//! BeatFlow's native shell (Slint) — the UI-only skeleton of the desktop
-//! app's port off the web stack, one component at a time
-//! (.claude/NATIVE_MIGRATION_BLUEPRINT.md). Everything playback-related is
-//! mocked here: a 3:42 demo track, a playhead timer, and a
-//! loading → playing toggle that feeds the BeatLoader. The audio engine
-//! arrives with the blueprint's Stage 1; see native/README.md for what's
-//! mocked and what deviates from the web app.
+//! BeatFlow's native shell (Slint) — UI + native audio engine.
+//! Playback uses the audio/stream modules adapted from refrence/rust.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::sync::Arc;
 use std::time::Duration;
 
+use crossbeam_channel::unbounded;
 use slint::{ComponentHandle, Timer, TimerMode};
+use tokio::runtime::Runtime;
 
 slint::include_modules!();
 
 mod backend;
 
+use backend::audio::{self, AudioCmd, AudioEvent, AudioHandle};
+use backend::innertube;
+use backend::stream::{self, Ranging, Shared};
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = AppWindow::new()?;
 
-    // ---- Mock playback state (state/player.ts's shape) --------------------
-    // "Demo Track" / "Demo Artist", 3:42 (222s), paused at 0:00, full volume,
-    // signed out (no favorite/menu queue state yet).
+    // Tokio runtime for async stream resolution/download.
+    let rt = Arc::new(Runtime::new()?);
+
+    // Audio engine.
+    let (events_tx, events_rx) = unbounded::<AudioEvent>();
+    let audio_handle = Arc::new(audio::spawn(
+        1.0,
+        false,
+        None,
+        events_tx,
+        || {
+            let _ = slint::invoke_from_event_loop(|| {});
+        },
+    ));
+
+    // Mock track metadata (a real resolver will replace this with Stage 4).
     let player = app.global::<Player>();
     player.set_title("Demo Track".into());
     player.set_artist("Demo Artist".into());
     player.set_duration(222.0);
 
-    // ---- Player callbacks --------------------------------------------------
     let weak = app.as_weak();
+    let audio = audio_handle.clone();
+    let rt2 = rt.clone();
     player.on_toggle_play(move || {
         let Some(app) = weak.upgrade() else { return };
         let player = app.global::<Player>();
         match player.get_status() {
-            // paused → the loader's latency: buffering for 600ms, then playing.
             0 => {
+                // paused -> buffering -> resolve & play
                 player.set_status(2);
-                // The web's CSS animation restarts when the loader mounts.
                 player.set_beat_phase(0.0);
+                let audio = audio.clone();
                 let weak = app.as_weak();
-                Timer::single_shot(Duration::from_millis(600), move || {
-                    let Some(app) = weak.upgrade() else { return };
-                    let player = app.global::<Player>();
-                    // Ignore the tick if the user paused meanwhile.
-                    if player.get_status() == 2 {
-                        player.set_status(1);
+                let rt = rt2.clone();
+                std::thread::spawn(move || {
+                    let video_id = "dQw4w9WgXcQ";
+                    let client = reqwest::Client::new();
+                    let stream = match rt.block_on(innertube::audio_stream(&client, video_id, "", true)) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            eprintln!("resolve failed: {e}");
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(app) = weak.upgrade() {
+                                    app.global::<Player>().set_status(0);
+                                }
+                            });
+                            return;
+                        }
+                    };
+                    let shared = Shared::new(
+                        stream.size,
+                        stream.duration_ms,
+                        stream.loudness_db,
+                        backend::stream::Format::from_opus(stream.opus),
+                        None,
+                        false,
+                    );
+                    rt.block_on(stream::download(
+                        client.clone(),
+                        stream.url.clone(),
+                        innertube::UA.to_string(),
+                        shared.clone(),
+                        None,
+                        Ranging::Query,
+                    ));
+                    if let Some(e) = shared.error() {
+                        eprintln!("download failed: {e}");
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = weak.upgrade() {
+                                app.global::<Player>().set_status(0);
+                            }
+                        });
+                        return;
                     }
+                    let decoder = match stream::decoder(shared.clone(), false) {
+                        Ok(d) => d,
+                        Err(e) => {
+                            eprintln!("decode failed: {e}");
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(app) = weak.upgrade() {
+                                    app.global::<Player>().set_status(0);
+                                }
+                            });
+                            return;
+                        }
+                    };
+                    let dur = stream.duration_ms as f64 / 1000.0;
+                    audio.send(AudioCmd::Start {
+                        generation: 1,
+                        decoder,
+                        shared: shared.clone(),
+                        at: Duration::ZERO,
+                    });
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = weak.upgrade() {
+                            let player = app.global::<Player>();
+                            if dur > 0.0 {
+                                player.set_duration(dur as f32);
+                            }
+                            player.set_status(1);
+                        }
+                    });
                 });
             }
-            // playing / buffering → paused.
-            _ => player.set_status(0),
+            _ => {
+                audio.send(AudioCmd::Pause);
+                player.set_status(0);
+            }
         }
     });
 
-    // next / previous: the mock queue is one track, so both restart it.
+    // next / previous
     let weak = app.as_weak();
+    let audio = audio_handle.clone();
     player.on_next(move || {
         let Some(app) = weak.upgrade() else { return };
         let player = app.global::<Player>();
         player.set_elapsed(0.0);
-        sync_time(&app);
+        player.set_progress(0.0);
+        audio.send(AudioCmd::Seek(Duration::ZERO));
     });
-
     let weak = app.as_weak();
+    let audio = audio_handle.clone();
     player.on_previous(move || {
         let Some(app) = weak.upgrade() else { return };
         let player = app.global::<Player>();
         player.set_elapsed(0.0);
-        sync_time(&app);
+        player.set_progress(0.0);
+        audio.send(AudioCmd::Seek(Duration::ZERO));
     });
 
     let weak = app.as_weak();
@@ -76,68 +159,67 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let player = app.global::<Player>();
         player.set_shuffle(!player.get_shuffle());
     });
-
     let weak = app.as_weak();
     player.on_cycle_repeat(move || {
         let Some(app) = weak.upgrade() else { return };
         let player = app.global::<Player>();
-        // off → all → one → off
         player.set_repeat((player.get_repeat() + 1) % 3);
     });
 
-    // useScrubber seeks on release; the Lcd shows the drag position live.
     let weak = app.as_weak();
+    let audio = audio_handle.clone();
     player.on_seeked(move |fraction| {
         let Some(app) = weak.upgrade() else { return };
         let player = app.global::<Player>();
-        player.set_elapsed(fraction * player.get_duration());
-        sync_time(&app);
+        let dur = player.get_duration();
+        let target = fraction * dur;
+        player.set_elapsed(target);
+        player.set_progress(fraction);
+        audio.send(AudioCmd::Seek(Duration::from_secs_f32(target)));
     });
 
     let weak = app.as_weak();
+    let audio = audio_handle.clone();
     player.on_set_volume(move |volume| {
         let Some(app) = weak.upgrade() else { return };
-        set_volume(&app, volume);
+        let player = app.global::<Player>();
+        player.set_volume((volume.clamp(0.0, 1.0) * 100.0).round() / 100.0);
+        player.set_muted(false);
+        audio.send(AudioCmd::Volume(player.get_volume()));
     });
-
     let weak = app.as_weak();
     player.on_toggle_mute(move || {
         let Some(app) = weak.upgrade() else { return };
         let player = app.global::<Player>();
         player.set_muted(!player.get_muted());
     });
-
-    // VolumeControl.tsx's useVolumeWheel: one notch steps 0.05, up on
-    // negative deltaY, clamped and rounded to whole percents
-    // (wheelVolume.ts); a zero delta leaves the volume unchanged.
     let weak = app.as_weak();
+    let audio = audio_handle.clone();
     player.on_wheel_volume(move |delta_y| {
-        if delta_y == 0.0 {
-            return;
-        }
+        if delta_y == 0.0 { return; }
         let Some(app) = weak.upgrade() else { return };
         let player = app.global::<Player>();
-        set_volume(&app, player.get_volume() + if delta_y < 0.0 { 0.05 } else { -0.05 });
+        let new_vol = player.get_volume() + if delta_y < 0.0 { 0.05 } else { -0.05 };
+        let clamped = new_vol.clamp(0.0, 1.0);
+        player.set_volume((clamped * 100.0).round() / 100.0);
+        player.set_muted(false);
+        audio.send(AudioCmd::Volume(player.get_volume()));
     });
 
-    // ---- Window chrome callbacks -------------------------------------------
+    // Window chrome callbacks
     let weak = app.as_weak();
     app.on_minimize(move || {
         if let Some(app) = weak.upgrade() {
             app.window().set_minimized(true);
         }
     });
-
     let weak = app.as_weak();
     app.on_toggle_maximize(move || {
         let Some(app) = weak.upgrade() else { return };
         let window = app.window();
         window.set_maximized(!window.is_maximized());
-        // The restore glyph follows the real state; the strip's double click
-        // and the maximize button both land here.
         app.global::<Ui>().set_maximized(window.is_maximized());
     });
-
     let weak = app.as_weak();
     app.on_close_requested(move || {
         if let Some(app) = weak.upgrade() {
@@ -146,33 +228,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let _ = slint::quit_event_loop();
     });
 
-    // ---- Timers -------------------------------------------------------------
-    // The playhead: +100ms per tick while playing, wrapping on repeat all/one
-    // and pausing at the end otherwise.
+    // Progress timer: read from audio status.
     let progress_timer = Timer::default();
     let weak = app.as_weak();
+    let audio = audio_handle.clone();
     progress_timer.start(TimerMode::Repeated, Duration::from_millis(100), move || {
         let Some(app) = weak.upgrade() else { return };
         let player = app.global::<Player>();
         if player.get_status() != 1 {
             return;
         }
-        let mut elapsed = player.get_elapsed() + 0.1;
-        let duration = player.get_duration();
-        if elapsed >= duration {
-            if player.get_repeat() != 0 {
-                elapsed -= duration;
-            } else {
-                player.set_status(0);
-                elapsed = duration;
-            }
-        }
-        player.set_elapsed(elapsed);
-        sync_time(&app);
+        let pos = audio.status.position_smooth();
+        let secs = pos.as_secs_f64();
+        player.set_elapsed(secs as f32);
+        let dur = player.get_duration();
+        player.set_progress(if dur > 0.0 { (secs as f32) / dur } else { 0.0 });
     });
 
-    // The BeatLoader: one 16ms tick advancing beat-phase over the 1.9s full
-    // cycle of the web's 950ms alternate keyframes, only while buffering.
+    // Beat loader timer.
     let beat_timer = Timer::default();
     let weak = app.as_weak();
     beat_timer.start(TimerMode::Repeated, Duration::from_millis(16), move || {
@@ -184,11 +257,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         player.set_beat_phase((player.get_beat_phase() + 0.016 / 1.9) % 1.0);
     });
 
+    // Event drain timer.
+    let event_timer = Timer::default();
+    let weak = app.as_weak();
+    let events = events_rx;
+    event_timer.start(TimerMode::Repeated, Duration::from_millis(50), move || {
+        while let Ok(ev) = events.try_recv() {
+            match ev {
+                AudioEvent::Finished { .. } => {
+                    if let Some(app) = weak.upgrade() {
+                        let player = app.global::<Player>();
+                        if player.get_repeat() != 0 {
+                            player.set_elapsed(0.0);
+                            player.set_progress(0.0);
+                        } else {
+                            player.set_status(0);
+                        }
+                    }
+                }
+                AudioEvent::Interrupted { at, .. } => {
+                    eprintln!("interrupted at {at:?}");
+                }
+                AudioEvent::Error(e) => {
+                    eprintln!("audio error: {e}");
+                    if let Some(app) = weak.upgrade() {
+                        app.global::<Player>().set_status(0);
+                    }
+                }
+                _ => {}
+            }
+        }
+    });
+
     app.show()?;
 
-    // The winit window only exists once the event loop is running, so the
-    // Windows chrome (Mica, DWM shadow, rounded corners) is applied on the
-    // first event-loop tick.
     let chrome_weak = app.as_weak();
     slint::invoke_from_event_loop(move || {
         if let Some(app) = chrome_weak.upgrade() {
@@ -196,34 +298,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     })?;
 
-    // Keep the timers alive for the event loop's lifetime.
-    let _timers = (progress_timer, beat_timer);
+    let _timers = (progress_timer, beat_timer, event_timer);
     app.run()?;
     Ok(())
 }
 
-/// Writes `progress` from `elapsed`/`duration`; the Lcd formats the clock
-/// labels itself, the way useScrubber.ts's draw loop writes them each frame.
-fn sync_time(app: &AppWindow) {
-    let player = app.global::<Player>();
-    let duration = player.get_duration();
-    let elapsed = player.get_elapsed();
-    player.set_progress(if duration > 0.0 { elapsed / duration } else { 0.0 });
-}
-
-/// state/player.ts's setVolume: clamped to [0, 1], rounded to whole percents
-/// so repeated wheel steps don't accumulate float dust, and it clears mute —
-/// scrolling up while muted unmutes.
-fn set_volume(app: &AppWindow, requested: f32) {
-    let player = app.global::<Player>();
-    player.set_volume((requested.clamp(0.0, 1.0) * 100.0).round() / 100.0);
-    player.set_muted(false);
-}
-
-/// The Windows 11 chrome the frameless window owes: Mica behind the
-/// transparent stage, the DWM drop shadow frameless windows lose, and the
-/// OS's rounded corners. (window-shadows can't be used: it targets
-/// raw-window-handle 0.5, while Slint runs with 0.6 here.)
 #[cfg(windows)]
 fn apply_chrome(app: &AppWindow) {
     use raw_window_handle::{HasWindowHandle, RawWindowHandle};
@@ -231,7 +310,6 @@ fn apply_chrome(app: &AppWindow) {
     use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND};
 
     let handle = app.window().window_handle();
-    // The app launches dark (tokens.css's dark palette is the default).
     let _ = window_vibrancy::apply_mica(&handle, Some(true));
 
     let Ok(handle) = handle.window_handle() else { return };
@@ -239,11 +317,6 @@ fn apply_chrome(app: &AppWindow) {
     let hwnd = HWND(win.hwnd.get() as _);
 
     unsafe {
-        // Slint's frameless windows get no OS shadow: extending a 1px sheet
-        // of frame into the client area turns the DWM one back on. The
-        // windows crate gates this function behind Win32_UI_Controls just
-        // for its MARGINS type, so the ABI-identical 4×i32 struct and the
-        // dwmapi import are declared here instead.
         #[repr(C)]
         struct Margins {
             cx_left_width: i32,
@@ -265,7 +338,6 @@ fn apply_chrome(app: &AppWindow) {
             },
         );
 
-        // Rounded corners (a no-op before Windows 11).
         let _ = DwmSetWindowAttribute(
             hwnd,
             DWMWA_WINDOW_CORNER_PREFERENCE,

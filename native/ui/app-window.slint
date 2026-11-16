@@ -10,6 +10,8 @@ import { Theme } from "theme.slint";
 import { Player, Ui } from "state.slint";
 import { Sidebar } from "sidebar.slint";
 import { PlayerBar } from "player-bar.slint";
+import { PageViewport } from "pages.slint";
+import { SidePanel } from "side-panel.slint";
 import { WindowControls } from "window-controls.slint";
 
 import "fonts/DMSans-Regular.ttf";
@@ -58,6 +60,13 @@ export component AppWindow inherits Window {
         height: 100%;
     }
 
+    PageViewport {
+        x: Theme.nav-width;
+        y: 0;
+        width: parent.width - Theme.nav-width;
+        height: parent.height - Theme.player-pill-height - Theme.player-bottom-offset - 40px;
+    }
+
     // left-(--web-navigation-width) bottom-(--player-bottom-offset): the pill
     // re-centres in the space right of the sidebar.
     PlayerBar {
@@ -65,6 +74,15 @@ export component AppWindow inherits Window {
         y: parent.height - Theme.player-pill-height - Theme.player-bottom-offset;
         width: parent.width - Theme.nav-width;
         height: Theme.player-pill-height;
+    }
+
+    // Side panel drawer: slides in from the right when Ui.side-panel != "".
+    SidePanel {
+        x: Ui.side-panel == "" ? parent.width : parent.width - Theme.side-panel-width;
+        y: 0;
+        width: Theme.side-panel-width;
+        height: 100%;
+        animate x { duration: 300ms; easing: cubic-bezier(0.215, 0.61, 0.355, 1); }
     }
 
     // Top drag strip: fixed top-0 inset-x-0 h-8 pr-[132px], drag + double

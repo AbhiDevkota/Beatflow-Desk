@@ -1,0 +1,152 @@
+// Page viewport + Home page, ported from web/app/src/pages/HomePage.tsx and
+// web/app/src/components/music/ShelfView.tsx. Data is mocked (Stage 4 of the
+// blueprint will bind real queries); layout, spacing and card sizes match the
+// web app's Tailwind classes (artwork 180x180, radius 12, shelf gap 16).
+//
+// Components are declared before their use.
+
+import { Theme } from "theme.slint";
+import { Player, Ui } from "state.slint";
+import { AppIcon } from "icons.slint";
+
+// A single square artwork card (180x180, radius 12) with a title + subtitle
+// underneath, matching web's ShelfView card.
+component ShelfCard inherits Rectangle {
+    in property <string> title: "";
+    in property <string> subtitle: "";
+    width: 180px;
+    height: 220px; // 180 artwork + 8 gap + ~32 text
+    background: transparent;
+
+    // artwork
+    Rectangle {
+        x: 0;
+        y: 0;
+        width: 180px;
+        height: 180px;
+        border-radius: 12px;
+        background: Theme.joe;
+        clip: true;
+    }
+
+    Text {
+        x: 0;
+        y: 188px;
+        text: root.title;
+        font-size: Theme.size-body;
+        font-weight: 600;
+        color: Theme.system-primary;
+        overflow: elide;
+        wrap: no-wrap;
+        width: 180px;
+    }
+    Text {
+        x: 0;
+        y: 206px;
+        text: root.subtitle;
+        font-size: Theme.size-callout;
+        font-weight: 400;
+        color: Theme.system-secondary;
+        overflow: elide;
+        wrap: no-wrap;
+        width: 180px;
+    }
+}
+
+// A horizontal shelf: title + a row of cards (web: shelf title 20px/700).
+component Shelf inherits Rectangle {
+    in property <string> title: "";
+    // fixed height: title (28) + gap (16) + card (220)
+    height: 264px;
+    background: transparent;
+
+    Text {
+        x: 0;
+        y: 0;
+        text: root.title;
+        font-size: 20px;
+        font-weight: 700;
+        color: Theme.system-primary;
+    }
+
+    HorizontalLayout {
+        y: 28px + 16px;
+        spacing: 16px;
+        alignment: start;
+        cross-axis-alignment: start;
+
+        ShelfCard { title: "Track One"; subtitle: "Artist"; }
+        ShelfCard { title: "Track Two"; subtitle: "Artist"; }
+        ShelfCard { title: "Track Three"; subtitle: "Artist"; }
+        ShelfCard { title: "Track Four"; subtitle: "Artist"; }
+        ShelfCard { title: "Track Five"; subtitle: "Artist"; }
+    }
+}
+
+export component HomePage inherits Rectangle {
+    background: transparent;
+
+    Flickable {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        content-width: self.width;
+        content-height: 28px + 264px * 3 + 40px;
+
+        VerticalLayout {
+            padding: 24px;
+            spacing: 8px;
+
+            Text {
+                text: "Home";
+                font-size: 28px;
+                font-weight: 800;
+                color: Theme.system-primary;
+            }
+
+            Shelf { title: "Top Picks for You"; }
+            Shelf { title: "Recently Played"; }
+            Shelf { title: "New Releases"; }
+        }
+    }
+}
+
+// Generic placeholder page for not-yet-migrated routes.
+export component PlaceholderPage inherits Rectangle {
+    in property <string> label: "Page";
+    background: transparent;
+
+    Text {
+        x: 24px;
+        y: 24px;
+        text: root.label;
+        font-size: 28px;
+        font-weight: 800;
+        color: Theme.system-primary;
+    }
+    Text {
+        x: 24px;
+        y: 64px;
+        text: "Coming soon in the native port.";
+        font-size: Theme.size-body;
+        color: Theme.system-secondary;
+    }
+}
+
+// The page viewport: switches on Ui.active-route.
+export component PageViewport inherits Rectangle {
+    background: transparent;
+
+    if Ui.active-route == "Home": HomePage { width: 100%; height: 100%; }
+    if Ui.active-route == "Search": PlaceholderPage { width: 100%; height: 100%; label: "Search"; }
+    if Ui.active-route == "New": PlaceholderPage { width: 100%; height: 100%; label: "New"; }
+    if Ui.active-route == "Library": PlaceholderPage { width: 100%; height: 100%; label: "Library"; }
+    if Ui.active-route == "Downloads": PlaceholderPage { width: 100%; height: 100%; label: "Downloads"; }
+    if Ui.active-route == "Settings": PlaceholderPage { width: 100%; height: 100%; label: "Settings"; }
+    if Ui.active-route == "Artist": PlaceholderPage { width: 100%; height: 100%; label: "Artist"; }
+    if Ui.active-route == "Album": PlaceholderPage { width: 100%; height: 100%; label: "Album"; }
+    if Ui.active-route == "Playlist": PlaceholderPage { width: 100%; height: 100%; label: "Playlist"; }
+    if Ui.active-route == "Moods": PlaceholderPage { width: 100%; height: 100%; label: "Moods"; }
+    if Ui.active-route == "Browse": PlaceholderPage { width: 100%; height: 100%; label: "Browse"; }
+}

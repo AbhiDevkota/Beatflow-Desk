@@ -1,0 +1,58 @@
+// SidePanel drawer, ported from web/app/src/shell/SidePanel.tsx. Slides in from
+// the right when Ui.side-panel is "lyrics" or "up-next", 300px wide, with the
+// 300ms ease-out-panel curve. Content is mocked (Stage 5/6 of the blueprint).
+//
+// Components are declared before their use.
+
+import { Theme } from "theme.slint";
+import { Player, Ui } from "state.slint";
+import { AppIcon } from "icons.slint";
+
+export component SidePanel inherits Rectangle {
+    // 300px drawer, slides in from the right.
+    width: Theme.side-panel-width;
+    height: 100%;
+    background: Theme.glass-material-bg;
+    border-radius: 0px;
+    clip: true;
+
+    // The drawer is positioned by app-window; here we just render content.
+    // Sliding is handled by app-window's x binding.
+
+    // Header with close button.
+    Rectangle {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: 48px;
+        background: transparent;
+
+        Text {
+            x: 16px;
+            y: 14px;
+            text: Ui.side-panel == "lyrics" ? "Lyrics" : "Up Next";
+            font-size: 16px;
+            font-weight: 700;
+            color: Theme.system-primary;
+        }
+    }
+
+    // Content area (mocked).
+    Rectangle {
+        x: 16px;
+        y: 48px;
+        width: parent.width - 32px;
+        height: parent.height - 48px;
+        background: transparent;
+
+        Text {
+            x: 0;
+            y: 16px;
+            text: Ui.side-panel == "lyrics"
+                ? "Lyrics will appear here."
+                : "Queue will appear here.";
+            font-size: Theme.size-body;
+            color: Theme.system-secondary;
+        }
+    }
+}

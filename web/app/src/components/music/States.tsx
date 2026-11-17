@@ -1,4 +1,5 @@
 import { PrefetchLink } from '@/components/PrefetchLink';
+import { config } from '@/config';
 
 /** A page-sized message, centred: also the Spotify page's sign-in invitation. */
 export const stateStyles = {
@@ -8,17 +9,17 @@ export const stateStyles = {
   button: 'mt-3 inline-flex h-8 items-center rounded-pill bg-key-bg px-4 type-body-emphasized text-white',
 };
 
-/** In place of a YouTube page when the extension isn't installed (prompt §1): an invitation, not an error. */
+/** In place of a YouTube page when the bridge isn't available (browser without the desktop app): an invitation, not an error. */
 export function NeedsExtension({ what = 'YouTube Music' }: { what?: string }) {
   return (
     <div className={stateStyles.state}>
-      <p className={stateStyles.title}>Browse {what} with the BeatFlow extension</p>
+      <p className={stateStyles.title}>Browse {what} in the BeatFlow desktop app</p>
       <p className={stateStyles.detail}>
-        The extension lets this page reach YouTube Music from your own browser. Addons and lyrics work without it.
+        The desktop app's engine lets this page reach YouTube Music. Addons and lyrics work without it.
       </p>
-      <PrefetchLink to="/extension" className={stateStyles.button}>
-        Get the Extension
-      </PrefetchLink>
+      <a className={stateStyles.button} href={config.androidAppUrl} target="_blank" rel="noreferrer">
+        Get the App
+      </a>
     </div>
   );
 }

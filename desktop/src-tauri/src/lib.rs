@@ -760,6 +760,13 @@ pub fn get_addons_config_path() -> PathBuf {
   new_path
 }
 
+/// The UI's own state (settings, theme, queue prefs, …), mirrored out of the
+/// WebView2 browser profile so it survives clearing the container and lives
+/// beside the other config files instead.
+pub fn get_storage_config_path() -> PathBuf {
+  get_config_dir().join("app-storage.json")
+}
+
 pub fn open_in_browser(url: &str) {
   #[cfg(target_os = "windows")]
   {
@@ -2688,6 +2695,28 @@ async fn bridge_call(app: tauri::AppHandle, method: String, params: Value) -> Re
       let stream_info = addon_client.stream(client(), &manifest, &candidate, atmos).await.map_err(|e| e.to_string())?;
       let stream_info = stream_info.ok_or("Addon returned no playable stream")?;
       Ok(json!(stream_info))
+    }
+    "storage.load" => {
+      let file = get_storage_config_path();
+      if file.exists() {
+        let content = fs::read_to_string(&file).map_err(|e| e.to_string())?;
+        let parsed: serde_json::Map<String, Value> =
+          serde_json::from_str(&content).unwrap_or_default();
+        Ok(json!(parsed))
+      } else {
+        Ok(json!({}))
+      }
+    }
+    "storage.save" => {
+      let file = get_storage_config_path();
+      let data = params.get("data").cloned().unwrap_or(json!({}));
+      let formatted = serde_json::to_string_pretty(&data).map_err(|e| e.to_string())?;
+      // Write beside the file and rename, so a crash mid-write can't leave a
+      // torn config behind.
+      let tmp = file.with_extension("json.tmp");
+      fs::write(&tmp, formatted).map_err(|e| e.to_string())?;
+      fs::rename(&tmp, &file).map_err(|e| e.to_string())?;
+      Ok(json!({ "saved": true, "path": file.to_string_lossy() }))
     }
     "addons.loadConfig" => {
       let config_file = get_addons_config_path();

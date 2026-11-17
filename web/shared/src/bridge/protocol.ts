@@ -367,6 +367,19 @@ export interface BridgeMethods {
     params: { addons: any[] };
     result: { saved: boolean; path: string };
   };
+  /**
+   * The UI's localStorage, mirrored into the config folder on desktop
+   * (`app-storage.json`) so settings survive clearing the WebView2 profile.
+   * Desktop-only: the browser build keeps plain localStorage.
+   */
+  'storage.load': {
+    params: Record<string, never>;
+    result: Record<string, string>;
+  };
+  'storage.save': {
+    params: { data: Record<string, string> };
+    result: { saved: boolean; path: string };
+  };
   'engine.setAddons': {
     params: { addons: any[] };
     result: { count: number };

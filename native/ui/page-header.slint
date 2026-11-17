@@ -1,0 +1,27 @@
+// The page title row, ported from web/app/src/components/PageHeader.tsx:
+// `mx-(--body-gutter) pt-8` with the type-header-emphasized title (34px/40px).
+//
+// The optional back button navigates the web router; the native shell has no
+// back stack yet, so only the title renders. `action` (the right slot) isn't
+// used by Home or New either.
+
+import { Theme } from "theme.slint";
+
+export component PageHeader inherits Rectangle {
+    in property <string> title;
+
+    height: 32px + 40px;    // pt-8 + the 34px/40px title line
+    background: transparent;
+
+    Text {
+        x: Theme.body-gutter;
+        y: 32px;
+        width: parent.width - 2 * Theme.body-gutter;
+        text: root.title;
+        font-size: Theme.size-header;
+        font-weight: 700;
+        color: Theme.system-primary;
+        overflow: elide;
+        wrap: no-wrap;
+    }
+}

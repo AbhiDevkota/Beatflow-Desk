@@ -1,0 +1,504 @@
+// The Search page, ported 1:1 from web/app/src/pages/SearchPage.tsx,
+// music/SearchField.tsx, and music/CategoryTiles.tsx:
+//
+//   - the sticky glass bar (62px, py-3) holding the centred 492×38 pill
+//     field with its clear button and the 302px suggestions glass dropdown
+//   - the landing state: Browse Categories, 4 columns of 16:9 tiles
+//     (radius 10, the coloured stripe down the left, title bottom-left)
+//   - the results state: Top Results (3 columns of 118px cards), then the
+//     result shelves in SearchPage.shelvesFor's order: Artists (circles),
+//     Albums, Songs (4-row tracks), Playlists, Videos (16:9)
+//
+// The backdrop-filter behind the bar (saturate(180%) blur(20px)) and the
+// tiles' radial highlight have no Slint equivalents; the material colours
+// stand in.
+
+import { Theme } from "theme.slint";
+import { AppIcon } from "icons.slint";
+import { Search, ShelfItem, SearchResult, Shelf } from "state.slint";
+import { ShelfView } from "shelf-view.slint";
+
+// ---------------------------------------------------------------------------
+// Landing: CategoryTiles.tsx
+// ---------------------------------------------------------------------------
+
+// One tile: `aspect-video rounded-artwork-lg`, the 160deg colour gradient
+// with the highlight toward the top-right, the solid 10px stripe down the
+// left (w-2.5) and the type-title-2-emphasized label at px-3.5 py-3.
+component CategoryTile inherits Rectangle {
+    in property <string> title;
+    in property <color> base-color;
+    callback search();
+
+    height: self.width * 9 / 16;                 // aspect-video
+    border-radius: Theme.radius-artwork-large;   // rounded-artwork-lg
+    clip: true;
+    background: tile-ta.has-hover ? root.base-color.brighter(0.06) : root.base-color;
+    animate background { duration: 200ms; }
+
+    // The 160deg shade toward the far corner.
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        background: @linear-gradient(160deg, transparent, #00000073);
+    }
+
+    // The radial(120% 90% at 100% 0%) highlight, as a linear stand-in.
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        background: @linear-gradient(225deg, #ffffff4d 0%, transparent 55%);
+    }
+
+    // The solid stripe down the left.
+    Rectangle {
+        x: 0;
+        width: 10px;                             // w-2.5
+        height: 100%;
+        background: root.base-color;
+    }
+
+    Text {
+        x: 24px;                                 // 10px stripe + px-3.5
+        y: parent.height - 12px - 22px;          // py-3 above the title line
+        width: parent.width - 36px;
+        text: root.title;
+        font-size: Theme.size-title-2;           // type-title-2-emphasized
+        font-weight: 700;
+        color: #ffffff;
+        overflow: elide;
+        wrap: no-wrap;
+    }
+
+    tile-ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.search(); }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Results: SearchPage.tsx's TopResult
+// ---------------------------------------------------------------------------
+
+// `rounded-[8px] bg-quinary hover:bg-quaternary`, grid-cols-[90px_1fr]
+// gap-x-3.5 px-3 py-3.5, min-h-[118px]; the 90px art at
+// radius-artwork-small, a type-title-3 title (line-clamp-2) and the
+// type-callout byline. The result's TrackMenu arrives with the menu stage.
+component TopResultCard inherits Rectangle {
+    in property <SearchResult> result;
+    callback play();
+
+    height: 118px;                               // min-h-[118px]
+    border-radius: 8px;
+    background: card-ta.has-hover ? Theme.system-quaternary : Theme.system-quinary;
+    animate background { duration: 150ms; }
+
+    card-ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.play(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 12px;                      // px-3
+        padding-right: 12px;
+        padding-top: 14px;                       // py-3.5
+        padding-bottom: 14px;
+        spacing: 14px;                           // gap-x-3.5
+        alignment: start;
+
+        Rectangle {
+            width: 90px;
+            height: 90px;
+            border-radius: Theme.radius-artwork-small;
+            clip: true;
+            background: Theme.joe;
+
+            if root.result.has-thumbnail: Image {
+                width: 100%;
+                height: 100%;
+                source: root.result.thumbnail;
+                image-fit: cover;
+            }
+
+            if !root.result.has-thumbnail: AppIcon {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                size: 28px;
+                source: @image-url("icons/songs.svg");
+                tint: Theme.system-secondary;
+            }
+        }
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: 2px;                        // gap-0.5
+            alignment: center;
+
+            Text {
+                text: root.result.title;
+                font-size: Theme.size-title-3;   // type-title-3 (400 15/20)
+                color: Theme.system-primary;
+                height: 40px;                    // line-clamp-2
+                wrap: word-wrap;
+                overflow: elide;
+                vertical-alignment: top;
+            }
+
+            Text {
+                text: "Song · " + root.result.artist;
+                font-size: Theme.size-callout;
+                color: Theme.system-secondary;
+                overflow: elide;
+                wrap: no-wrap;
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// SearchPage
+// ---------------------------------------------------------------------------
+
+export component SearchPage inherits Rectangle {
+    background: transparent;
+
+    // The field's live text (SearchField's value). The searched query lives
+    // in Search.query — the URL's ?q — so typing doesn't swap the page state;
+    // only submit (Enter, a suggestion, a tile) does.
+    in-out property <string> field: Search.query;
+
+    // Set on submit so the suggestions close; any edit reopens them.
+    property <bool> just-searched: false;
+
+    property <bool> landing: Search.query == "";
+    property <bool> has-results:
+        Search.top-results.length > 0 || Search.artists.length > 0
+        || Search.albums.length > 0 || Search.playlists.length > 0
+        || Search.songs.columns.length > 0 || Search.videos.cards.length > 0;
+
+    // The dropdown: open while the field holds focus, has text, has
+    // completions, and nothing was just submitted.
+    property <bool> drop-open:
+        field-input.has-focus && root.field != "" && !root.just-searched
+        && Search.suggestions.length > 0;
+
+    // ---- The sticky bar (py-3 over the 38px field = 62px) -------------------
+
+    search-bar := Rectangle {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 62px;
+        background: Theme.header-material;
+
+        // The centred field (w-[min(492px,100%)]).
+        field-wrap := Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: 12px;
+            width: Math.min(Theme.search-field-width, parent.width - 2 * Theme.body-gutter);
+            height: Theme.search-field-height;
+
+            search-field := Rectangle {
+                width: 100%;
+                height: 100%;
+                border-radius: Theme.radius-pill;
+                border-width: 1px;
+                border-color: Theme.search-border;
+                background: Theme.page-glass;    // bg-page
+
+                AppIcon {
+                    x: 10px;                     // left-2.5
+                    y: (parent.height - self.height) / 2;
+                    size: 15px;
+                    source: @image-url("icons/search.svg");
+                    tint: Theme.system-secondary;
+                }
+
+                field-input := TextInput {
+                    x: 28px;                     // pl-7
+                    y: 0;
+                    width: parent.width - 58px;  // − pl-7 − pr-[30px]
+                    height: 100%;
+                    text <=> root.field;
+                    font-size: Theme.size-body;
+                    color: Theme.system-primary;
+                    vertical-alignment: center;
+
+                    edited => {
+                        root.just-searched = false;
+                        Search.suggest(root.field);
+                    }
+                    accepted => {
+                        root.just-searched = true;
+                        Search.query = root.field;
+                        Search.search(root.field);
+                    }
+                }
+
+                // The placeholder while empty.
+                if root.field == "": Text {
+                    x: 28px;
+                    y: (parent.height - self.preferred-height) / 2;
+                    text: "Artists, Songs, Lyrics, and More";
+                    font-size: Theme.size-body;
+                    color: Theme.system-tertiary;
+                }
+
+                // The clear button (right-[9px] size-4, bg-tertiary).
+                if root.field != "": Rectangle {
+                    x: parent.width - 25px;
+                    y: (parent.height - 16px) / 2;
+                    width: 16px;
+                    height: 16px;
+                    border-radius: 8px;
+                    background: clear-ta.has-hover ? Theme.system-quaternary : Theme.system-tertiary;
+
+                    AppIcon {
+                        x: 2px;
+                        y: 2px;
+                        size: 12px;
+                        source: @image-url("icons/x.svg");
+                        tint: Theme.page-bg;     // text-page
+                    }
+
+                    clear-ta := TouchArea {
+                        mouse-cursor: MouseCursor.pointer;
+                        clicked => {
+                            root.field = "";
+                            root.just-searched = false;
+                            Search.suggest("");
+                        }
+                    }
+                }
+            }
+        }
+
+        // The suggestions dropdown: 302px of glass, 3px under the field
+        // (rounded-[9px] border-[#00000033] bg-thick-material py-1.5, the
+        // inset stroke and outer shadow). Query completions only — the
+        // item rows arrive with the artwork-backed suggestion source.
+        if root.drop-open: Rectangle {
+            x: field-wrap.x;
+            y: field-wrap.y + field-wrap.height + 3px;
+            width: 302px;
+            height: Search.suggestions.length * 26px + 12px;
+            border-radius: 9px;
+            border-width: 1px;
+            border-color: #00000033;
+            background: Theme.thick-material;
+            drop-shadow-offset-y: 8px;
+            drop-shadow-blur: 40px;
+            drop-shadow-color: #0000008c;
+
+            VerticalLayout {
+                padding-top: 6px;            // py-1.5
+                padding-bottom: 6px;
+                padding-left: 6px;           // mx-1.5
+                padding-right: 6px;
+
+                for sugg in Search.suggestions: Rectangle {
+                    height: 26px;
+                    border-radius: 3px;      // rounded-[3px]
+                    background: sug-ta.has-hover ? Theme.key-color-bg : transparent;
+
+                    HorizontalLayout {
+                        padding-left: 4px;   // p-1
+                        padding-right: 4px;
+                        spacing: 4px;
+                        alignment: start;
+
+                        AppIcon {
+                            source: @image-url("icons/search.svg");
+                            size: 13px;
+                            tint: sug-ta.has-hover ? #ffffff : Theme.system-secondary;
+                        }
+
+                        Text {
+                            text: sugg.text;
+                            font-size: Theme.size-body;
+                            color: sug-ta.has-hover ? #ffffff : Theme.system-secondary;
+                            overflow: elide;
+                            wrap: no-wrap;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    sug-ta := TouchArea {
+                        mouse-cursor: MouseCursor.pointer;
+                        clicked => {
+                            root.field = sugg.text;
+                            root.just-searched = true;
+                            Search.query = sugg.text;
+                            Search.search(sugg.text);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ---- The scrolling content ---------------------------------------------
+    // Declared first so the glass bar (declared after) paints over it.
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+
+        content := VerticalLayout {
+            // The bar occupies 62px; the sections' mt-3/pt-3 add 12px.
+            padding-top: 74px;
+            padding-bottom: Theme.page-bottom-padding;
+            spacing: 36px;                   // each shelf section's pt-9
+
+            // ---- Landing: Browse Categories (CategoryTiles.tsx) --------
+            if root.landing: VerticalLayout {
+                padding-bottom: 32px;        // mb-8
+
+                Text {
+                    text: "Browse Categories";
+                    font-size: Theme.size-title-2;
+                    font-weight: 700;
+                    color: Theme.system-primary;
+                    overflow: elide;
+                    wrap: no-wrap;
+                }
+
+                VerticalLayout {
+                    padding-top: 12px;       // mt-3
+                    spacing: 20px;           // gap-5
+
+                    HorizontalLayout {
+                        spacing: 20px;
+                        CategoryTile { title: "Pop"; base-color: #e11d48; search => { root.search-category("Pop"); } }
+                        CategoryTile { title: "Hip-Hop"; base-color: #d97706; search => { root.search-category("Hip-Hop"); } }
+                        CategoryTile { title: "Rock"; base-color: #dc2626; search => { root.search-category("Rock"); } }
+                        CategoryTile { title: "Dance & Electronic"; base-color: #7c3aed; search => { root.search-category("Dance Electronic"); } }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 20px;
+                        CategoryTile { title: "R&B / Soul"; base-color: #ea580c; search => { root.search-category("R&B Soul"); } }
+                        CategoryTile { title: "Indie & Alternative"; base-color: #059669; search => { root.search-category("Indie Alternative"); } }
+                        CategoryTile { title: "Chill & Acoustic"; base-color: #0891b2; search => { root.search-category("Chill Acoustic"); } }
+                        CategoryTile { title: "Focus & Study"; base-color: #4f46e5; search => { root.search-category("Focus Study"); } }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 20px;
+                        CategoryTile { title: "Workout & Fitness"; base-color: #16a34a; search => { root.search-category("Workout Music"); } }
+                        CategoryTile { title: "Moods & Activities"; base-color: #9333ea; search => { root.search-category("Moods"); } }
+                        CategoryTile { title: "Charts & Trending"; base-color: #0284c7; search => { root.search-category("Top Charts"); } }
+                        CategoryTile { title: "New Releases"; base-color: #db2777; search => { root.search-category("New Music"); } }
+                    }
+                }
+            }
+
+            // ---- Results ------------------------------------------------
+            if !root.landing: VerticalLayout {
+                spacing: 36px;               // each shelf section's pt-9
+
+                // Top Results: 3 columns, gap 20px; 118px cards (the web's
+                // topGrid), then mb-8 before the shelves.
+                if Search.top-results.length > 0: VerticalLayout {
+                    spacing: 12px;           // title → grid (mt-3)
+                    padding-bottom: 32px;    // mb-8
+
+                    Text {
+                        text: "Top Results";
+                        font-size: Theme.size-title-2;
+                        font-weight: 700;
+                        color: Theme.system-primary;
+                        overflow: elide;
+                        wrap: no-wrap;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 20px;       // gap-5
+
+                        for res in Search.top-results: TopResultCard {
+                            result: res;
+                            play => { Search.play(res); }
+                        }
+                    }
+                }
+
+                // The result shelves, in shelvesFor's order.
+                if Search.artists.length > 0: ShelfView {
+                    shelf: {
+                        title: "Artists",
+                        strapline: "",
+                        layout: 2,
+                        cards: Search.artists,
+                        columns: []
+                    };
+                    play-shelf(shelf, item) => { Search.play-shelf(shelf, item); }
+                }
+
+                if Search.albums.length > 0: ShelfView {
+                    shelf: {
+                        title: "Albums",
+                        strapline: "",
+                        layout: 0,
+                        cards: Search.albums,
+                        columns: []
+                    };
+                    play-shelf(shelf, item) => { Search.play-shelf(shelf, item); }
+                }
+
+                if Search.songs.columns.length > 0: ShelfView {
+                    shelf: Search.songs;
+                    play-shelf(shelf, item) => { Search.play-shelf(shelf, item); }
+                }
+
+                if Search.playlists.length > 0: ShelfView {
+                    shelf: {
+                        title: "Playlists",
+                        strapline: "",
+                        layout: 0,
+                        cards: Search.playlists,
+                        columns: []
+                    };
+                    play-shelf(shelf, item) => { Search.play-shelf(shelf, item); }
+                }
+
+                if Search.videos.cards.length > 0: ShelfView {
+                    shelf: Search.videos;
+                    play-shelf(shelf, item) => { Search.play-shelf(shelf, item); }
+                }
+
+                // States.tsx's EmptyState.
+                if !root.has-results: VerticalLayout {
+                    padding-top: 48px;
+                    padding-bottom: 72px;
+                    spacing: 8px;
+
+                    Text {
+                        text: "No Results";
+                        font-size: Theme.size-title-2;
+                        font-weight: 700;
+                        color: Theme.system-primary;
+                        horizontal-alignment: center;
+                    }
+
+                    Text {
+                        text: "Try a new search for something other than \"" + Search.query + "\".";
+                        font-size: Theme.size-body;
+                        color: Theme.system-secondary;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+        }
+        content-height: content.preferred-height;
+        content-width: self.width;
+    }
+
+    // A tile click: fill the field and run the search, as the web's
+    // setParams({ q }) does through SearchField's `initial` effect.
+    function search-category(query: string) {
+        root.field = query;
+        root.just-searched = true;
+        Search.query = query;
+        Search.search(query);
+    }
+}

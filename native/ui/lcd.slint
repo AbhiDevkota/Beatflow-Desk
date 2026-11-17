@@ -61,6 +61,22 @@ export component Lcd inherits Rectangle {
             clip: true;
             background: Theme.joe; // placeholder until artwork loads
 
+            if Player.has-artwork: Image {
+                width: 100%;
+                height: 100%;
+                source: Player.artwork;
+                image-fit: cover;
+            }
+
+            if !Player.has-artwork: AppIcon {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                size: 18px;
+                source: @image-url("icons/songs.svg");
+                tint: Theme.system-secondary;
+                opacity: 0.5;
+            }
+
             // group-hover/pill: black 50% + Maximize2 14px, 200ms fade
             overlay := Rectangle {
                 background: #00000080;

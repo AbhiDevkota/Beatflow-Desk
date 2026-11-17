@@ -1,0 +1,60 @@
+// The New (Explore) page, ported from web/app/src/pages/NewPage.tsx: the
+// page header, then the explore shelves. The web renders whatever YTM's
+// explore feed answers with; the native page's three groups are the albums
+// / charts / playlists the explore module fetches.
+
+import { Theme } from "theme.slint";
+import { NewData, Shelf } from "state.slint";
+import { PageHeader } from "page-header.slint";
+import { ShelfView } from "shelf-view.slint";
+
+export component NewPage inherits Rectangle {
+    background: transparent;
+
+    // The square-card groups, shaped as shelves so they render through the
+    // same ShelfView the web's Shelves list uses.
+    property <Shelf> albums-shelf: {
+        title: "New Albums & Singles",
+        strapline: "",
+        layout: 0,
+        cards: NewData.new-albums,
+        columns: []
+    };
+
+    property <Shelf> playlists-shelf: {
+        title: "Featured Playlists",
+        strapline: "",
+        layout: 0,
+        cards: NewData.playlists,
+        columns: []
+    };
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+
+        content := VerticalLayout {
+            spacing: 36px;                   // each shelf section's pt-9
+            padding-bottom: Theme.page-bottom-padding;
+
+            PageHeader { title: "New"; }
+
+            ShelfView {
+                shelf: root.albums-shelf;
+                play-shelf(shelf, item) => { NewData.play-shelf(shelf, item); }
+            }
+
+            ShelfView {
+                shelf: NewData.top-charts;
+                play-shelf(shelf, item) => { NewData.play-shelf(shelf, item); }
+            }
+
+            ShelfView {
+                shelf: root.playlists-shelf;
+                play-shelf(shelf, item) => { NewData.play-shelf(shelf, item); }
+            }
+        }
+        content-height: content.preferred-height;
+        content-width: self.width;
+    }
+}

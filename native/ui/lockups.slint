@@ -1,0 +1,336 @@
+// The artwork lockups, ported 1:1 from web/app/src/components/music/Lockups.tsx
+// (report §2): SquareLockup, CircleLockup, VideoLockup and TrackLockup, with
+// their hover scrims, play platters and captions.
+//
+// Metrics from the web components:
+//   caption   mt-2 (8px) flex-col gap-px, both lines type-callout 12px
+//   platter   bottom-2.5 left-2.5 size-[30px] rounded-full, PlayIcon 16px
+//   track row h-[55px] grid-cols-[40px_1fr] gap-x-3 py-[7.5px] pr-3.5
+//   artwork   radius var(--radius-artwork-medium) = 7px (square/video)
+
+import { Theme } from "theme.slint";
+import { AppIcon } from "icons.slint";
+import { ShelfItem } from "state.slint";
+
+// Lockups.tsx's PlayPlatter: the circular play button on the hover scrim.
+// The caller positions it (bottom-2.5 left-2.5 of the artwork).
+component PlayPlatter inherits Rectangle {
+    callback clicked();
+    width: 30px;
+    height: 30px;
+    border-radius: Theme.radius-pill;
+    background: platter-ta.has-hover ? Theme.key-color-bg : Theme.thin-material;
+    animate background { duration: 100ms; }
+
+    AppIcon {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        size: 16px;
+        source: @image-url("icons/play.svg");
+        tint: #ffffff;
+    }
+
+    platter-ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// The caption block both square and video lockups share: title + subtitle,
+// mt-2 (8px) with a 1px gap, type-callout lines. The caller positions it
+// below the artwork with `y`.
+component Caption inherits Rectangle {
+    in property <string> title;
+    in property <string> subtitle;
+    height: 44px;       // 8px top gap + two 15px callout lines + slack
+    background: transparent;
+
+    Text {
+        y: 8px;
+        width: parent.width;
+        text: root.title;
+        font-size: Theme.size-callout;
+        font-weight: 500;
+        color: Theme.system-primary;
+        overflow: elide;
+        wrap: no-wrap;
+    }
+
+    Text {
+        y: 24px;    // 8 + 15 + 1px gap
+        width: parent.width;
+        text: root.subtitle;
+        font-size: Theme.size-callout;
+        color: Theme.system-secondary;
+        overflow: elide;
+        wrap: no-wrap;
+    }
+}
+
+// Square lockup (report §2): artwork, hover scrim with play platter, title
+// and subtitle. `width` is the column width the shelf gives it (144px on the
+// square kind, SquareLockup's 220px default elsewhere).
+export component SquareLockup inherits Rectangle {
+    in property <ShelfItem> item;
+    callback play();
+
+    property <bool> hover: art-ta.has-hover;
+    width: 144px;
+    height: 190px;  // 144px artwork + 8px gap + two callout lines
+    background: transparent;
+
+    // The artwork with its hover scrim (LockupArtwork).
+    Rectangle {
+        width: parent.width;
+        height: parent.width;
+        border-radius: Theme.radius-artwork-medium;
+        clip: true;
+        background: Theme.joe;
+
+        if root.item.has-thumbnail: Image {
+            width: 100%;
+            height: 100%;
+            source: root.item.thumbnail;
+            image-fit: cover;
+        }
+
+        if !root.item.has-thumbnail: AppIcon {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            size: 34px;
+            source: @image-url("icons/albums.svg");
+            tint: Theme.system-secondary;
+        }
+
+        // Hover scrim (bg-lockup-hover, 100ms ease-in) + platter.
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: Theme.lockup-hover;
+            opacity: root.hover ? 1.0 : 0.0;
+            animate opacity { duration: 100ms; }
+
+            PlayPlatter {
+                x: 10px;                        // left-2.5
+                y: parent.height - 40px;        // bottom-2.5
+                clicked => { root.play(); }
+            }
+        }
+    }
+
+    Caption {
+        y: parent.width;    // right under the square artwork
+        width: parent.width;
+        title: root.item.title;
+        subtitle: root.item.subtitle;
+    }
+
+    art-ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.play(); }
+    }
+}
+
+// Circular artist lockup (report §2, type H): the photo in a 50% radius and
+// the centred name below (gap-2.5).
+export component CircleLockup inherits Rectangle {
+    in property <ShelfItem> item;
+    callback play();
+
+    property <bool> hover: art-ta.has-hover;
+    width: 118px;
+    height: 154px;  // 118px circle + 10px gap + one body line
+    background: transparent;
+
+    Rectangle {
+        width: parent.width;
+        height: parent.width;
+        border-radius: parent.width / 2;
+        clip: true;
+        background: Theme.joe;
+
+        if root.item.has-thumbnail: Image {
+            width: 100%;
+            height: 100%;
+            source: root.item.thumbnail;
+            image-fit: cover;
+        }
+
+        if !root.item.has-thumbnail: AppIcon {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            size: 30px;
+            source: @image-url("icons/users.svg");
+            tint: Theme.system-secondary;
+        }
+
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: Theme.lockup-hover;
+            opacity: root.hover ? 1.0 : 0.0;
+            animate opacity { duration: 100ms; }
+        }
+    }
+
+    Text {
+        y: parent.width + 10px;
+        width: parent.width;
+        text: root.item.title;
+        horizontal-alignment: center;
+        font-size: Theme.size-body;
+        color: Theme.system-primary;
+        overflow: elide;
+        wrap: no-wrap;
+    }
+
+    art-ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.play(); }
+    }
+}
+
+// 16:9 video lockup (report §2, type C) — VideoLockup.tsx. Takes the shelf
+// item shape (`subtitle` carries the artist line).
+export component VideoLockup inherits Rectangle {
+    in property <ShelfItem> item;
+    callback play();
+
+    property <bool> hover: art-ta.has-hover;
+    width: 200px;
+    height: 162px;  // 200 × 9/16 artwork (112.5px) + caption
+    background: transparent;
+
+    Rectangle {
+        width: parent.width;
+        height: parent.width * 9 / 16;
+        border-radius: Theme.radius-artwork-medium;
+        clip: true;
+        background: Theme.joe;
+
+        if root.item.has-thumbnail: Image {
+            width: 100%;
+            height: 100%;
+            source: root.item.thumbnail;
+            image-fit: cover;
+        }
+
+        if !root.item.has-thumbnail: AppIcon {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            size: 30px;
+            source: @image-url("icons/music-videos.svg");
+            tint: Theme.system-secondary;
+        }
+
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: Theme.lockup-hover;
+            opacity: root.hover ? 1.0 : 0.0;
+            animate opacity { duration: 100ms; }
+
+            PlayPlatter {
+                x: 10px;                        // left-2.5
+                y: parent.height - 40px;        // bottom-2.5
+                clicked => { root.play(); }
+            }
+        }
+    }
+
+    Caption {
+        y: parent.width * 9 / 16;   // right under the 16:9 artwork
+        width: parent.width;
+        title: root.item.title;
+        subtitle: root.item.subtitle;
+    }
+
+    art-ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.play(); }
+    }
+}
+
+// A song row inside a shelf (report §2, track lockup): 40px art, title,
+// byline; 55px tall with the art's hover overlay (TrackLockup.tsx).
+export component TrackLockup inherits Rectangle {
+    in property <ShelfItem> item;
+    callback play();
+
+    height: 55px;
+    background: transparent;
+
+    HorizontalLayout {
+        padding-left: 0px;
+        padding-right: 14px;   // pr-3.5
+        spacing: 12px;         // gap-x-3
+        cross-axis-alignment: center;
+
+        // The 40px art with its hover overlay (bg-lockup-hover + PlayIcon).
+        Rectangle {
+            width: 40px;
+            height: 40px;
+            border-radius: Theme.radius-artwork-small;
+            clip: true;
+            background: Theme.joe;
+
+            if root.item.has-thumbnail: Image {
+                width: 100%;
+                height: 100%;
+                source: root.item.thumbnail;
+                image-fit: cover;
+            }
+
+            if !root.item.has-thumbnail: AppIcon {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                size: 16px;
+                source: @image-url("icons/songs.svg");
+                tint: Theme.system-secondary;
+            }
+
+            Rectangle {
+                width: 100%;
+                height: 100%;
+                background: Theme.lockup-hover;
+                opacity: row-ta.has-hover ? 1.0 : 0.0;
+                animate opacity { duration: 100ms; }
+
+                AppIcon {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    size: 16px;
+                    source: @image-url("icons/play.svg");
+                    tint: #ffffff;
+                }
+            }
+        }
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: 1px;      // gap-px
+            alignment: center;
+
+            Text {
+                text: root.item.title;
+                font-size: Theme.size-body;
+                color: Theme.system-primary;
+                overflow: elide;
+                wrap: no-wrap;
+            }
+
+            Text {
+                text: root.item.subtitle;
+                font-size: Theme.size-callout;
+                color: Theme.system-secondary;
+                overflow: elide;
+                wrap: no-wrap;
+            }
+        }
+    }
+
+    row-ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.play(); }
+    }
+}

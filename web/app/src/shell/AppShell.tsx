@@ -6,16 +6,14 @@ import { startHistoryReporting } from '@/playback/historyReporting';
 import { startLivePresence } from '@/playback/livePresence';
 import { Outlet, useNavigate } from 'react-router';
 import { resolveDeepLink } from '@/lib/deepLink';
-import { PrefetchLink } from '@/components/PrefetchLink';
 import { queryClient } from '@/lib/queryClient';
+import { Banner, bannerButtonClass } from './Banner';
 import { adoptYtAuthState, ytAuthQueryKey } from '@/extension/useYtAuth';
 import { adoptSpotifyAuthState } from '@/extension/useSpotifyAuth';
 import { config } from '@/config';
-import { useExtension } from '@/extension/useExtension';
 import { isDesktopApp, isMobileBrowser } from '@/lib/platform';
 import { useUi } from '@/state/ui';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
-import { Banner, bannerButtonClass } from './Banner';
 import { MobileTopBar } from './MobileTopBar';
 import { PlayerBar } from './PlayerBar';
 import { SidePanel } from './SidePanel';
@@ -156,9 +154,6 @@ export function AppShell() {
   useEffect(() => startHistoryReporting(), []);
   // Counts this tab in the "listening now" figure beside the phone and PC apps.
   useEffect(() => startLivePresence(), []);
-  const extension = useExtension();
-  const bannerDismissed = useUi((s) => s.installBannerDismissed);
-  const dismissBanner = useUi((s) => s.dismissInstallBanner);
   const fullScreen = useUi((s) => s.fullScreen);
   const [fullScreenMounted, setFullScreenMounted] = useState(fullScreen);
 
@@ -185,25 +180,12 @@ export function AppShell() {
     banner = (
       <Banner
         title="BeatFlow is better in the app."
-        detail="Phone browsers can’t run the BeatFlow extension. The Android app has everything."
+        detail="The Android app has everything."
         action={
           <a className={bannerButtonClass} href={config.androidAppUrl} target="_blank" rel="noreferrer">
             Get the App
           </a>
         }
-      />
-    );
-  } else if (!desktop && extension.state === 'missing' && !bannerDismissed) {
-    banner = (
-      <Banner
-        title="Play YouTube Music with the BeatFlow extension."
-        detail="Playback, YouTube Music sign-in, Spotify and Discord need the extension. Addons and lyrics work without it."
-        action={
-          <PrefetchLink className={bannerButtonClass} to="/extension">
-            Get the Extension
-          </PrefetchLink>
-        }
-        onDismiss={dismissBanner}
       />
     );
   }

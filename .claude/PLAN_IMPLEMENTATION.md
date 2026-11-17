@@ -9,16 +9,17 @@ React app (`web/app`) stays the source of truth. Reference backend on branch `re
 Frameless window, Mica, sidebar, player pill, window controls, theme tokens,
 animations (BeatLoader, scrubber, volume). Audio engine wired to Slint Player.
 
-## Stage 1 — Search + Home with real data [~]
+## Stage 1 — Search + Home + Explore with real data [x]
 - [x] Integrate jsc (rquickjs) JS cipher module
 - [x] Integrate webmusic (session/cookies)
 - [x] Integrate ytmapi (Api, visitor data, call)
 - [x] Integrate ytm (search, home, suggestions, album, artist, playlist)
 - [x] Integrate backend types (Explore, SearchResults, Collection, ArtistPage, Library, Channels)
 - [x] Add rquickjs dependency
-- [x] Search page: query input + results list (ListView) wired to ytm::search_songs
-- [ ] Home page: real shelves from ytm::home
-- [ ] Wire search result click -> resolve stream -> play
+- [x] Search page: 1:1 pill search field + 12 Apple Music CategoryTiles + Top Results cards + Songs list wired to ytm::search_songs
+- [x] Wire search result click -> resolve stream -> play
+- [x] Home page: 1:1 Top Picks, Quick Picks, and New Releases shelves wired to ytm::home
+- [x] New / Explore page: 1:1 New Albums & Singles, Top Charts, and Featured Playlists wired to ytm::new_albums and ytm::charts
 
 ## Stage 2 — Album / Artist / Playlist pages [ ]
 ## Stage 3 — Library + Downloads [ ]

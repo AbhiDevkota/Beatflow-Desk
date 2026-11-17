@@ -1,0 +1,196 @@
+// Horizontal shelves, ported from web/app/src/components/music/ShelfView.tsx
+// and components/shelf.ts (report §2): a type-title-2-emphasized header with
+// an optional strapline, then the scrolling row with Apple's 28×52 glass
+// hover arrows.
+//
+// The web's grid columns per breakpoint become the fixed lockup widths of
+// each kind: square 144px · circle 118px · tracks 270px columns of 4 ·
+// video 200px. Row heights = content + the 15px py bleed the shelf list
+// keeps for hover shadows.
+
+import { Theme } from "theme.slint";
+import { AppIcon } from "icons.slint";
+import { ShelfItem, Shelf } from "state.slint";
+import { SquareLockup, CircleLockup, VideoLockup, TrackLockup } from "lockups.slint";
+
+// ShelfView.tsx's ShelfTitle: type-title-2-emphasized + optional strapline
+// (text-xs text-secondary font-medium tracking-wide mt-0.5).
+export component ShelfTitle inherits Rectangle {
+    in property <string> title;
+    in property <string> subtitle;
+    height: subtitle == "" ? 22px : 40px;
+    background: transparent;
+
+    Text {
+        y: 0;
+        text: root.title;
+        font-size: Theme.size-title-2;
+        font-weight: 700;
+        color: Theme.system-primary;
+        overflow: elide;
+        wrap: no-wrap;
+    }
+
+    if root.subtitle != "": Text {
+        y: 24px;
+        text: root.subtitle;
+        font-size: Theme.size-callout;
+        font-weight: 500;
+        letter-spacing: 0.4px;   // tracking-wide
+        color: Theme.system-secondary;
+        overflow: elide;
+        wrap: no-wrap;
+    }
+}
+
+// ShelfScroller.tsx's arrow: a 28×52 glass pill, shown while the shelf is
+// hovered, paging by roughly one viewport of columns. (Hover is exclusive in
+// Slint, so hovering the arrow itself fades the opposite one — close enough
+// for the affordance.)
+export component ShelfArrow inherits Rectangle {
+    in property <bool> forward: false;
+    in property <bool> shelf-hover: false;
+    callback clicked();
+    in-out property <bool> hover: arrow-ta.has-hover;
+
+    width: 28px;    // w-7
+    height: 52px;   // h-13
+    border-radius: Theme.radius-pill;
+    background: arrow-ta.has-hover ? Theme.system-quaternary : Theme.thin-material;
+    opacity: (shelf-hover || arrow-ta.has-hover) ? 1.0 : 0.0;
+    animate opacity { duration: 250ms; }   // --duration-arrow
+
+    AppIcon {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        size: 20px;
+        source: forward ? @image-url("icons/forward.svg") : @image-url("icons/backward.svg");
+        tint: arrow-ta.has-hover ? Theme.system-primary : Theme.system-secondary;
+    }
+
+    arrow-ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// One shelf: title row, then the Flickable with the kind's lockups and the
+// hover arrows. `play-shelf` receives the shelf and the clicked item, so the
+// queue continues from there (ShelfView's playList(tracks, i)).
+export component ShelfView inherits Rectangle {
+    in property <Shelf> shelf;
+    callback play-shelf(Shelf, ShelfItem);
+
+    // Row content heights per kind, + the 15px py bleed top and bottom:
+    //   square 190 (144px art + caption) · circle 154 · tracks 220 (4×55)
+    //   video 157 (112.5px art + caption)
+    property <length> row-height: root.shelf.layout == 1 ? 250px
+        : root.shelf.layout == 2 ? 184px
+        : root.shelf.layout == 3 ? 187px
+        : 220px;
+
+    // The header's height: 22px title line, 40px with the strapline under it.
+    property <length> title-height: root.shelf.strapline == "" ? 22px : 40px;
+
+    height: title-height + 14px + row-height;
+    background: transparent;
+
+    title := ShelfTitle {
+        y: 0;
+        x: Theme.body-gutter;
+        width: parent.width - 2 * Theme.body-gutter;
+        title: root.shelf.title;
+        subtitle: root.shelf.strapline;
+    }
+
+    // The scrolling row (group/shelf relative).
+    shelf-area := Rectangle {
+        y: title-height + 14px;   // mb-3.5
+        width: parent.width;
+        height: row-height;
+        clip: false;
+
+        // Bottom-layer hover proxy: hover in the row's gaps shows the
+        // arrows, like the web's group/shelf (hover is exclusive in Slint,
+        // so hovering a lockup itself won't — close enough for the affordance).
+        shelf-ta := TouchArea {
+            width: 100%;
+            height: 100%;
+        }
+
+        scroller := Flickable {
+            width: 100%;
+            height: 100%;
+
+            // --- square layout (G) --------------------------------------
+            if root.shelf.layout == 0: HorizontalLayout {
+                spacing: 20px;   // --gap
+                padding-left: Theme.body-gutter;
+                padding-right: Theme.body-gutter;
+
+                for item in root.shelf.cards: SquareLockup {
+                    item: item;
+                    play => { root.play-shelf(root.shelf, item); }
+                }
+            }
+
+            // --- circle layout (H) --------------------------------------
+            if root.shelf.layout == 2: HorizontalLayout {
+                spacing: 20px;
+                padding-left: Theme.body-gutter;
+                padding-right: Theme.body-gutter;
+
+                for item in root.shelf.cards: CircleLockup {
+                    item: item;
+                    play => { root.play-shelf(root.shelf, item); }
+                }
+            }
+
+            // --- tracks layout (TrackLockupsShelf): columns of rows ------
+            if root.shelf.layout == 1: HorizontalLayout {
+                spacing: 20px;
+                padding-left: Theme.body-gutter;
+                padding-right: Theme.body-gutter;
+
+                for col in root.shelf.columns: VerticalLayout {
+                    for item in col.items: TrackLockup {
+                        width: 270px;   // --xs-width
+                        item: item;
+                        play => { root.play-shelf(root.shelf, item); }
+                    }
+                }
+            }
+
+            // --- video layout (C) ----------------------------------------
+            if root.shelf.layout == 3: HorizontalLayout {
+                spacing: 20px;
+                padding-left: Theme.body-gutter;
+                padding-right: Theme.body-gutter;
+
+                for item in root.shelf.cards: VideoLockup {
+                    item: item;
+                    play => { root.play-shelf(root.shelf, item); }
+                }
+            }
+        }
+
+        // The hover arrows, only when there's something to scroll.
+        // content-x goes negative as the row scrolls right, so the back
+        // arrow adds a page and the forward one subtracts (the Flickable
+        // clamps to the ends).
+        if scroller.content-width > scroller.width: ShelfArrow {
+            y: (parent.height - self.height) / 2;
+            x: 6px;                          // left-1.5
+            forward: false;
+            shelf-hover: shelf-ta.has-hover;
+            clicked => { scroller.content-x += scroller.width - 2 * Theme.body-gutter; }
+        }
+        if scroller.content-width > scroller.width: ShelfArrow {
+            y: (parent.height - self.height) / 2;
+            x: parent.width - self.width - 6px;   // right-1.5
+            forward: true;
+            shelf-hover: shelf-ta.has-hover;
+            clicked => { scroller.content-x -= scroller.width - 2 * Theme.body-gutter; }
+        }
+    }
+}

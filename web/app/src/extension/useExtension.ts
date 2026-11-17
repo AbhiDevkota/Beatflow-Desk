@@ -1,6 +1,4 @@
-import { detectExtension, isDesktopApp, desktopBridge, type DetectedExtension } from '@bitchord/shared/bridge';
-import { useQuery } from '@tanstack/react-query';
-import { config } from '@/config';
+import { desktopBridge, isDesktopApp, type DetectedExtension } from '@bitchord/shared/bridge';
 import { queryClient } from '@/lib/queryClient';
 
 export type ExtensionStatus =
@@ -10,9 +8,9 @@ export type ExtensionStatus =
 
 export const extensionQueryKey = ['extension', 'detect'] as const;
 
-/** Desktop mock extension object representing the native Rust engine */
+/** The native Rust engine stands in for the extension on desktop. */
 const DESKTOP_EXTENSION: DetectedExtension = {
-  bridge: (isDesktopApp() ? desktopBridge() : null) as any,
+  bridge: desktopBridge(),
   info: {
     version: '1.9.2',
     protocol: 1,
@@ -21,58 +19,19 @@ const DESKTOP_EXTENSION: DetectedExtension = {
   },
 };
 
-/** Re-pings after a miss: an MV3 service worker waking from sleep can miss the first one. */
-const RECHECKS = 4;
-const RECHECK_MS = 1500;
-/** After those, a still-missing extension is polled slowly, so one that wakes late (or is installed meanwhile) is picked up without a reload. */
-const SLOW_RECHECK_MS = 5000;
-
-/**
- * One ping. When the extension was already known, a miss gets a second, more
- * patient ping, and if that misses too the known extension is kept: a worker
- * that fell asleep or restarted must not flip the site to "not installed" and
- * strand everything that reads the bridge (history reporting, lyrics) until a
- * reload. A bridge is only a function over chrome.runtime, so it recovers on
- * its own when the worker is back; a removed extension fails each call instead.
- */
-async function detect(): Promise<DetectedExtension | null> {
-  const known = queryClient.getQueryData<DetectedExtension | null>(extensionQueryKey) ?? null;
-  const found = await detectExtension({ chromiumExtensionId: config.chromiumExtensionId });
-  if (found || !known) return found;
-  return (await detectExtension({ chromiumExtensionId: config.chromiumExtensionId, timeoutMs: 4000 })) ?? known;
-}
-
 if (isDesktopApp()) {
   queryClient.setQueryData(extensionQueryKey, DESKTOP_EXTENSION);
 }
 
 /**
- * Whether the companion extension is installed (prompt §4.2: a `ping` on
- * startup). A miss is reported at once, so a visitor without the extension
- * sees the install prompt straight away, but re-checked a few times: a
- * sleeping worker answering late flips the page to its content on its own.
+ * The browser extension is gone; the desktop .exe is the only client with a
+ * bridge (the Rust engine answers every call). On desktop the stand-in is
+ * always present; elsewhere there is nothing to reach.
  */
 export function useExtension(): ExtensionStatus {
-  if (isDesktopApp()) {
-    if (!queryClient.getQueryData(extensionQueryKey)) {
-      queryClient.setQueryData(extensionQueryKey, DESKTOP_EXTENSION);
-    }
-    return { state: 'present', extension: DESKTOP_EXTENSION };
+  if (!isDesktopApp()) return { state: 'missing' };
+  if (!queryClient.getQueryData(extensionQueryKey)) {
+    queryClient.setQueryData(extensionQueryKey, DESKTOP_EXTENSION);
   }
-
-  const query = useQuery({
-    queryKey: extensionQueryKey,
-    queryFn: detect,
-    staleTime: 30_000,
-    gcTime: Infinity,
-    retry: false,
-    // Re-pinged when the tab comes back, so an extension updated or reloaded
-    // meanwhile reports its new version (useExtensionUpdate).
-    refetchOnWindowFocus: true,
-    refetchInterval: (q) =>
-      q.state.data === null ? (q.state.dataUpdateCount <= RECHECKS ? RECHECK_MS : SLOW_RECHECK_MS) : false,
-  });
-  if (query.isPending) return { state: 'checking' };
-  if (!query.data) return { state: 'missing' };
-  return { state: 'present', extension: query.data };
+  return { state: 'present', extension: DESKTOP_EXTENSION };
 }

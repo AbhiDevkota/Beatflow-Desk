@@ -1,21 +1,15 @@
-import { installDesktopFetch } from '@/desktop/desktopFetch';
+import { restoreConfigStorage } from '@/desktop/configStorage';
 
-installDesktopFetch();
+/**
+ * Boot gate for the desktop .exe: app data lives in the config folder
+ * (Music\BeatFlow\config\app-storage.json), not the WebView2 browser
+ * profile. Seeding localStorage from the file must finish before any store
+ * hydrates — zustand persist hydrates at import time — so the real entry
+ * loads only after the restore. In the browser this resolves immediately.
+ */
+const boot = async (): Promise<void> => {
+  await restoreConfigStorage();
+  await import('./bootstrap');
+};
 
-import { QueryClientProvider } from '@tanstack/react-query';
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { createBrowserRouter, RouterProvider } from 'react-router';
-import { queryClient } from '@/lib/queryClient';
-import { routes } from '@/routes';
-import '@/styles/global.css';
-
-const router = createBrowserRouter(routes);
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
-  </StrictMode>,
-);
+void boot();

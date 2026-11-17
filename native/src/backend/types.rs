@@ -1,4 +1,4 @@
-﻿use super::model::{Card, Link, Thumb, Track};
+﻿use super::model::{Card, Thumb, Track};
 
 pub struct Explore {
     pub new_albums: Vec<Card>,

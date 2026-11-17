@@ -110,7 +110,7 @@ impl Session {
     }
 
     /// Save to the credential store; false when it refused.
-    pub fn save(&self, data_dir: &Path) -> bool {
+    pub fn save(&self, _data_dir: &Path) -> bool {
         match Err(anyhow::anyhow!("vault stubbed")) {
             Ok(()) => true,
             Err(e) => {

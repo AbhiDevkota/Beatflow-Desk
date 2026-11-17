@@ -262,8 +262,10 @@ export component PlayerBar inherits Rectangle {
     height: Theme.player-pill-height;
     background: transparent;
 
-    // w-[min(668px,100%)]: 100% is the flex row minus its px-5.
-    property <length> pill-width: Math.min(668px, self.width - Theme.body-gutter);
+    // w-[min(668px,100%)]: 100% is the flex row minus its px-5 (2 × 20px).
+    // The literal stands in for the paddings — body-gutter (25px) is the
+    // page's gutter, not the pill's.
+    property <length> pill-width: Math.min(668px, self.width - 40px);
 
     // group-hover/pill: has-hover is per-TouchArea and child areas shadow the
     // pill's own, so hovering the pill is the union of every hit area on it.

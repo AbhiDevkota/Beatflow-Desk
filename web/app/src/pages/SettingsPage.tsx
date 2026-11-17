@@ -158,7 +158,7 @@ function LinkRow({ to, icon, title, value }: { to: string; icon?: ReactNode; tit
 
 function youtubeText(auth: ReturnType<typeof useYtAuth>): string {
   if (auth.state === 'checking') return 'Checking…';
-  if (auth.state === 'unavailable') return 'Needs the extension';
+  if (auth.state === 'unavailable') return 'Needs the desktop app';
   const { browserSignedIn, connected, active } = auth.auth;
   if (!browserSignedIn) return 'Not signed in';
   if (!connected) return 'Disconnected';
@@ -292,7 +292,6 @@ export default function SettingsPage() {
   };
 
   const present = extension.state === 'present';
-  const extensionVersion = extension.state === 'present' ? `v${extension.extension.info.version}` : null;
   const ytStatsCapable = extension.state === 'present' ? extension.extension.info.capabilities.includes('yt.stats') : true;
   const discordAvailable = discord.state === 'ready' && discord.discord.available;
 
@@ -312,7 +311,7 @@ export default function SettingsPage() {
   const searching = searchQuery.trim().length > 0;
   const q = searchQuery.toLowerCase().trim();
 
-  // Render Account Centre group (Account Management, Discord, Extension, Listen Together)
+  // Render Account Centre group (Account Management, Discord, Listen Together)
   const renderAccountGroup = () => (
     <section className={settingsUi.group}>
       <LinkRow
@@ -331,14 +330,6 @@ export default function SettingsPage() {
           icon={<SiDiscord size={22} className="text-[#5865f2] flex-shrink-0" />}
           title="Discord"
           value={discordText}
-        />
-      )}
-      {!desktop && (
-        <LinkRow
-          to="/extension"
-          icon={<MdOutlineExtension size={22} className="text-secondary flex-shrink-0" />}
-          title="BeatFlow Extension"
-          value={extensionVersion ? extensionVersion : 'Not installed'}
         />
       )}
       <LinkRow
@@ -786,7 +777,7 @@ export default function SettingsPage() {
             <span className={settingsUi.rowDetail}>Backend media & playback engine</span>
           </span>
           <span className={settingsUi.value}>
-            {desktop ? 'Embedded Rust Tauri Host' : extensionVersion ? `Extension ${extensionVersion}` : 'Not connected'}
+            {desktop ? 'Embedded Rust Tauri Host' : 'Not connected'}
           </span>
         </div>
         <a
@@ -857,25 +848,13 @@ export default function SettingsPage() {
         to="/settings/accounts"
         icon={<SiSpotify size={22} className="text-[#1ed760] flex-shrink-0" />}
         title="Spotify"
-        value={present ? 'Settings & library' : `Needs ${desktop ? 'engine' : 'extension'}`}
+        value={present ? 'Settings & library' : `Needs ${desktop ? 'engine' : 'the desktop app'}`}
       />
     ), 'about');
 
     check('Discord Presence', ['discord', 'rich presence', 'activity', 'rpc', 'account centre'], (
       <LinkRow key="dc" to="/settings/discord" icon={<SiDiscord size={22} className="text-[#5865f2] flex-shrink-0" />} title="Discord" value={discordText} />
     ), 'audio-quality');
-
-    if (!desktop) {
-      check('BeatFlow Extension', ['extension', 'host', 'browser', 'account centre'], (
-        <LinkRow
-          key="ext"
-          to="/extension"
-          icon={<MdOutlineExtension size={22} className="text-secondary flex-shrink-0" />}
-          title="BeatFlow Extension"
-          value={extensionVersion ? extensionVersion : 'Not installed'}
-        />
-      ), 'about');
-    }
 
     check('Listen Together', ['jam', 'party', 'listen together', 'friends', 'sync', 'account centre'], (
       <LinkRow
@@ -1290,7 +1269,6 @@ export default function SettingsPage() {
     discord,
     discordText,
     extension,
-    extensionVersion,
     ytStatsCapable,
     party.code,
     autoplay,

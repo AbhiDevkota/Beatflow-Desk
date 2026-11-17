@@ -1,0 +1,424 @@
+// The floating glass player pill, ported from web/app/src/shell/PlayerBar.tsx
+// (with VolumeControl.tsx and components/music/BeatLoader.tsx): a
+// min(668px, 100%) capsule floating 20px above the window's bottom edge and
+// re-centred in the space right of the 260px sidebar — grid columns
+// [184px transport | lcd | 123px actions], px-4.
+//
+// The side panel's data-panel-open padding and the fullscreen fade arrive
+// with their stages. Signed-out mock: no FavoriteButton (FavoriteButton.tsx
+// returns null when signed out), so the actions row is TrackMenu, Lyrics,
+// Up Next and the volume speaker.
+//
+// Components are declared before their use (Slint resolves top-down).
+
+import { Theme } from "theme.slint";
+import { Player, Ui } from "state.slint";
+import { AppIcon } from "icons.slint";
+import { Lcd } from "lcd.slint";
+
+// BeatLoader.tsx at size 18: four 2.2px bars in a 13px-tall frame with 1.8px
+// gaps, pulsing scaleY and opacity. The web runs each bar's keyframes on a
+// 950ms alternate cycle with a 0.22s stagger; here one triangle wave is
+// driven by Player.beat-phase (main.rs ticks it over the 1.9s full cycle) and
+// each bar reads its own keyframe range off global.css's beat-buffer-1..4,
+// staggered by 0.22s/0.95s/2 of the full cycle. The CSS curve
+// (cubic-bezier(0.45,0.05,0.55,0.95)) isn't exactly a triangle — README notes
+// the approximation.
+component BeatLoader inherits Rectangle {
+    width: 18px;
+    height: 18px;
+    background: transparent;
+    in property <color> bar-color: Theme.system-primary;   // bg-current
+
+    property <length> frame-height: 13px;  // Math.round(18 * 0.72)
+    property <length> bar-width: 2.2px;    // Math.max(1.5, round(18*0.12*10)/10)
+    property <length> bar-gap: 1.8px;      // Math.max(1.5, round(18*0.1*10)/10)
+
+    // Triangle wave over the fract part (Slint has no % operator): 0 at 0,
+    // 1 at 0.5, 0 at 1 — the alternate cycle's there-and-back.
+    function tri(x: float) -> float {
+        return 1.0 - Math.abs(2.0 * (x - Math.floor(x)) - 1.0);
+    }
+
+    property <float> t1: tri(Player.beat-phase);
+    property <float> t2: tri(Player.beat-phase + 0.1158);
+    property <float> t3: tri(Player.beat-phase + 0.2316);
+    property <float> t4: tri(Player.beat-phase + 0.3474);
+
+    // The inner flex row (items-center justify-center, h-[13px]).
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - frame-height) / 2;
+        width: 4 * bar-width + 3 * bar-gap;
+        height: frame-height;
+        background: transparent;
+
+        Rectangle {  // animate-beat-buffer-1: 0.25→0.85, 0.45→0.85
+            x: 0;
+            width: root.bar-width;
+            height: frame-height * (0.25 + 0.60 * root.t1);
+            y: (parent.height - self.height) / 2;
+            border-radius: root.bar-width / 2;
+            background: root.bar-color;
+            opacity: 0.45 + 0.40 * root.t1;
+        }
+
+        Rectangle {  // animate-beat-buffer-2: 0.35→1.0, 0.55→1.0
+            x: root.bar-width + root.bar-gap;
+            width: root.bar-width;
+            height: frame-height * (0.35 + 0.65 * root.t2);
+            y: (parent.height - self.height) / 2;
+            border-radius: root.bar-width / 2;
+            background: root.bar-color;
+            opacity: 0.55 + 0.45 * root.t2;
+        }
+
+        Rectangle {  // animate-beat-buffer-3: 0.22→0.9, 0.4→0.95
+            x: 2 * (root.bar-width + root.bar-gap);
+            width: root.bar-width;
+            height: frame-height * (0.22 + 0.68 * root.t3);
+            y: (parent.height - self.height) / 2;
+            border-radius: root.bar-width / 2;
+            background: root.bar-color;
+            opacity: 0.40 + 0.55 * root.t3;
+        }
+
+        Rectangle {  // animate-beat-buffer-4: 0.4→0.75, 0.6→0.8
+            x: 3 * (root.bar-width + root.bar-gap);
+            width: root.bar-width;
+            height: frame-height * (0.40 + 0.35 * root.t4);
+            y: (parent.height - self.height) / 2;
+            border-radius: root.bar-width / 2;
+            background: root.bar-color;
+            opacity: 0.60 + 0.20 * root.t4;
+        }
+    }
+}
+
+// PlayerBar.tsx's `control` (`grid place-items-center rounded-[6px]
+// disabled:opacity-40`), shared by the transport and the actions row's
+// buttons. `active:scale-[0.98]` becomes a width/height animation — Slint has
+// no scale transform, so it shrinks toward the top-left instead of the centre.
+component ControlButton inherits Rectangle {
+    in property <image> source;
+    in property <length> icon-size: 28px;
+    in property <length> box-width: 28px;   // size-7; the actions row's w-6
+    in property <length> box-height: 28px;  // h-7
+    in property <length> box-radius: 6px;   // rounded-[6px] / rounded-[4px]
+    in property <bool> disabled: false;     // disabled:opacity-40
+    in property <bool> faded: false;        // fadeForVolume while volume's open
+    in property <bool> key-colored: false;  // aria-pressed:text-key
+    in property <color> idle-color: Theme.system-primary;  // text-primary/secondary
+    in property <bool> buffering: false;    // BeatLoader instead of the glyph
+    callback clicked();
+    in-out property <bool> hover: ta.has-hover;
+
+    width: ta.pressed ? box-width * 0.98 : box-width;
+    height: ta.pressed ? box-height * 0.98 : box-height;
+    border-radius: box-radius;
+    background: transparent;
+    opacity: faded ? 0.0 : (disabled ? 0.4 : 1.0);
+    animate width, height { duration: 100ms; }
+
+    property <color> fg: key-colored ? Theme.key-color : idle-color;
+
+    if !root.buffering: AppIcon {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        source: root.source;
+        size: root.icon-size;
+        tint: root.fg;
+    }
+    if root.buffering: BeatLoader {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        bar-color: root.fg;
+    }
+
+    ta := TouchArea {
+        enabled: !parent.disabled && !parent.faded;
+        mouse-cursor: parent.disabled ? MouseCursor.default : MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// VolumeControl.tsx: the speaker mutes, and hovering it slides the level in
+// where the actions beside it were. The slider is the web input's geometry:
+// h-4 w-24 with a 4px track and a 12px thumb whose edges stay inside the
+// track (centre travelling 6..90px). It lives in the actions row's coordinate
+// space — right-[33px] of the 123px row, i.e. the row's last 24px is the
+// speaker, so from this component the 96px slider starts at -(33+96-24)px.
+component VolumeControl inherits Rectangle {
+    width: 24px;    // the action button's w-6
+    height: 28px;   // h-7
+    background: transparent;
+
+    // The row's data-volume-open: open while the pointer is on the speaker or
+    // the slider (the web opens on pointerEnter and closes on the row's
+    // pointerLeave; pressing the slider counts as being on it).
+    in-out property <bool> hover:
+        speaker-ta.has-hover || slider-ta.has-hover || slider-ta.pressed;
+    property <bool> open: self.hover;
+
+    // VolumeControl.tsx: `const level = muted ? 0 : volume`.
+    property <float> level: Player.muted ? 0.0 : Player.volume;
+
+    function seek-volume() {
+        Player.set-volume(Math.clamp((slider-ta.mouse-x - 6px) / 84px, 0.0, 1.0));
+    }
+
+    // The level slides in over the faded actions: right-[33px] h-4 w-24,
+    // translate-x-2 + opacity-0 when closed (150ms transitions).
+    slider := Rectangle {
+        x: root.open ? -105px : -97px;
+        y: 6px;   // row: top-1/2 (28px) − mt-2 (8px), minus this cell's y
+        width: 96px;
+        height: 16px;
+        background: transparent;
+        opacity: root.open ? 1.0 : 0.0;
+        animate x, opacity { duration: 150ms; }
+
+        // The 4px track, filled to the level (the web's linear-gradient).
+        Rectangle {
+            y: 6px;
+            width: parent.width;
+            height: 4px;
+            border-radius: 2px;
+            background: Theme.system-quaternary;
+            clip: true;
+
+            Rectangle {
+                width: parent.width * root.level;
+                height: 100%;
+                background: Theme.system-primary;
+            }
+        }
+
+        // The 12px white thumb (shadow 0 0 2px #0006), centre on 6..90.
+        Rectangle {
+            width: 12px;
+            height: 12px;
+            y: 2px;
+            x: root.level * 84px;
+            border-radius: 12px;
+            background: #ffffff;
+            drop-shadow-blur: 2px;
+            drop-shadow-color: #00000066;
+        }
+
+        slider-ta := TouchArea {
+            enabled: root.open;   // pointer-events-none while closed
+            mouse-cursor: MouseCursor.pointer;
+
+            // input[type=range]: the value follows the pointer live.
+            pointer-event(e) => {
+                if (e.kind == PointerEventKind.down) {
+                    root.seek-volume();
+                }
+            }
+            moved => { root.seek-volume(); }
+
+            // useVolumeWheel: one notch steps 0.05, rounded to whole percents
+            // (wheelVolume.ts); the accepted event won't scroll the page.
+            scroll-event(e) => {
+                Player.wheel-volume(e.delta-y / 1px);
+                EventResult.accept
+            }
+        }
+    }
+
+    // The speaker button: text-primary aria-pressed:text-key.
+    Rectangle {
+        width: 100%;
+        height: 28px;
+        border-radius: 4px;
+        background: transparent;
+
+        AppIcon {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            // muted || level == 0 → VolumeX; < 0.5 → Volume1; else Volume2
+            source: root.level == 0.0 ? @image-url("icons/volume-x.svg")
+                : root.level < 0.5 ? @image-url("icons/volume-1.svg")
+                : @image-url("icons/volume-2.svg");
+            size: 18px;
+            tint: Player.muted ? Theme.key-color : Theme.system-primary;
+        }
+
+        speaker-ta := TouchArea {
+            mouse-cursor: MouseCursor.pointer;
+            clicked => { Player.toggle-mute(); }
+            scroll-event(e) => {
+                Player.wheel-volume(e.delta-y / 1px);
+                EventResult.accept
+            }
+        }
+    }
+}
+
+export component PlayerBar inherits Rectangle {
+    // x/y/width are set by app-window.slint: left-(--web-navigation-width)
+    // bottom-(--player-bottom-offset), the space right of the sidebar.
+    height: Theme.player-pill-height;
+    background: transparent;
+
+    // w-[min(668px,100%)]: 100% is the flex row minus its px-5 (2 × 20px).
+    // The literal stands in for the paddings — body-gutter (25px) is the
+    // page's gutter, not the pill's.
+    property <length> pill-width: Math.min(668px, self.width - 40px);
+
+    // group-hover/pill: has-hover is per-TouchArea and child areas shadow the
+    // pill's own, so hovering the pill is the union of every hit area on it.
+    property <bool> pill-hover:
+        pill-ta.has-hover || shuffle-btn.hover || prev-btn.hover || play-btn.hover
+        || next-btn.hover || repeat-btn.hover || lcd.hover || volume-ctl.hover
+        || menu-btn.hover || lyrics-btn.hover || up-next-btn.hover;
+
+    // fadeForVolume: the actions slide the volume level in over themselves and
+    // get out of its way while it's open (the speaker/slider hover keeps it).
+    property <bool> volume-open: volume-ctl.hover;
+
+    // glass-pill's second box shadow (0 4px 16px -2px rgba(0,0,0,0.18)).
+    // Slint's drop-shadow casts from the element's own painted alpha, so the
+    // twin carries a 1/255 fill — imperceptible, but it shapes the blur.
+    pill-shadow := Rectangle {
+        x: pill-wrap.x;
+        y: 0;
+        width: root.pill-width;
+        height: Theme.player-pill-height;
+        border-radius: Theme.radius-pill;
+        background: #00000001;
+        drop-shadow-offset-y: 4px;
+        drop-shadow-blur: 16px;
+        drop-shadow-color: #0000002e;   // rgba(0, 0, 0, 0.18)
+    }
+
+    pill-wrap := Rectangle {
+        x: (parent.width - root.pill-width) / 2;
+        y: 0;
+        width: root.pill-width;
+        height: Theme.player-pill-height;
+        background: transparent;
+
+        pill := Rectangle {
+            width: 100%;
+            height: 100%;
+            border-radius: Theme.radius-pill;
+            background: Theme.player-bg;   // --playerBackground
+            // glass-pill's ::after inset stroke, uniform because Slint borders
+            // can't vary per side: white 0.22 × --glassMaterialInnerStrokeAlpha
+            // (0.25 dark / 0.05 light) ≈ the web's top highlight.
+            border-width: 1px;
+            border-color: Theme.is-dark ? #ffffff0e : #ffffff03;
+            // The first shadow: 0 14px 44px -4px --glassMaterialShadowColor
+            // (the -4px spread has no Slint equivalent).
+            drop-shadow-offset-y: 14px;
+            drop-shadow-blur: 44px;
+            drop-shadow-color: Theme.glass-material-shadow;
+
+            // The pill's own hover, beneath every interactive child.
+            pill-ta := TouchArea { }
+
+            // ---- #miniplayer-transport -------------------------------
+            // 184px column, pr-2, justify-between over the 176px content row:
+            // 28 + 96 (three size-7 buttons, gap-1.5) + 28 = 152, so 12px
+            // between the edges and the middle group → x 16/56/90/124/164.
+            shuffle-btn := ControlButton {
+                x: 16px;
+                y: 14px;
+                source: @image-url("icons/shuffle.svg");
+                idle-color: Theme.system-secondary;   // text-secondary → text-key
+                key-colored: Player.shuffle;
+                clicked => { Player.toggle-shuffle(); }
+            }
+
+            prev-btn := ControlButton {
+                x: 58px;
+                y: 14px;
+                icon-size: 26px;
+                source: @image-url("icons/backward.svg");
+                disabled: !Player.has-track;
+                clicked => { Player.previous(); }
+            }
+
+            play-btn := ControlButton {
+                x: 90px;
+                y: 14px;
+                // status 0 = paused, 1 = playing, 2 = buffering/loading
+                buffering: Player.status >= 2;
+                source: Player.status == 1 ? @image-url("icons/pause.svg") : @image-url("icons/play.svg");
+                disabled: !Player.has-track;
+                clicked => { Player.toggle-play(); }
+            }
+
+            next-btn := ControlButton {
+                x: 124px;
+                y: 14px;
+                icon-size: 26px;
+                source: @image-url("icons/forward.svg");
+                disabled: !Player.has-track || !Player.has-next;
+                clicked => { Player.next(); }
+            }
+
+            repeat-btn := ControlButton {
+                x: 164px;
+                y: 14px;
+                source: Player.repeat == 2 ? @image-url("icons/repeat-one.svg") : @image-url("icons/repeat.svg");
+                idle-color: Theme.system-secondary;
+                key-colored: Player.repeat != 0;
+                clicked => { Player.cycle-repeat(); }
+            }
+
+            // ---- #miniplayer-info: 184px column ends at 200 (px-4) ------
+            lcd := Lcd {
+                x: 200px;
+                y: 0;
+                width: parent.width - 339px;  // − 16 (px-4) − 184 − 16 − 123
+                pill-hover: root.pill-hover;
+            }
+
+            // ---- #miniplayer-actions: 123px = 4 × w-6 + 3 × gap-[9px] ---
+            menu-btn := ControlButton {
+                x: root.pill-width - 139px;
+                y: 14px;
+                box-width: 24px;
+                box-radius: 4px;
+                icon-size: 18px;
+                source: @image-url("icons/ellipsis.svg");
+                faded: root.volume-open;
+                // TrackMenu's menu itself is Stage 5; no-op for now.
+                clicked => { }
+            }
+
+            lyrics-btn := ControlButton {
+                x: root.pill-width - 106px;
+                y: 14px;
+                box-width: 24px;
+                box-radius: 4px;
+                icon-size: 18px;
+                source: Ui.side-panel == "lyrics" ? @image-url("icons/lyrics-active.svg") : @image-url("icons/lyrics.svg");
+                key-colored: Ui.side-panel == "lyrics";
+                faded: root.volume-open;
+                // The drawer arrives with Stage 4; the toggle carries state.
+                clicked => { Ui.side-panel = Ui.side-panel == "lyrics" ? "" : "lyrics"; }
+            }
+
+            up-next-btn := ControlButton {
+                x: root.pill-width - 73px;
+                y: 14px;
+                box-width: 24px;
+                box-radius: 4px;
+                icon-size: 18px;
+                source: @image-url("icons/up-next.svg");
+                key-colored: Ui.side-panel == "up-next";
+                faded: root.volume-open;
+                clicked => { Ui.side-panel = Ui.side-panel == "up-next" ? "" : "up-next"; }
+            }
+
+            volume-ctl := VolumeControl {
+                x: root.pill-width - 40px;
+                y: 14px;
+            }
+        }
+    }
+}

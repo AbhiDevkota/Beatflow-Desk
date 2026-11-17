@@ -1,0 +1,506 @@
+// The Home page, ported 1:1 from web/app/src/pages/HomePage.tsx and the
+// components it composes:
+//
+//   1. PageHeader "Home"
+//   2. Top Picks for You (home/TopPicksShelf.tsx): 240px 3:4 portrait cards
+//      with the bottom gradient caption and the logo badge
+//   3. Recently Played (music/ShelfView.tsx's TrackShelf): the 4-row track
+//      columns
+//   4. The lead feed shelf, Find Your Mood (home/FindYourMoodShelf.tsx),
+//      then the remaining shelves — Android's slice order
+//
+// Every shelf section keeps the web's pt-9 (36px); the page clears the
+// floating player pill with pb-[calc(56+20+40)px] = 116px
+// (Theme.page-bottom-padding).
+
+import { Theme } from "theme.slint";
+import { AppIcon } from "icons.slint";
+import { ShelfItem, MoodItem, HomeData } from "state.slint";
+import { PageHeader } from "page-header.slint";
+import { ShelfTitle, ShelfArrow, ShelfView } from "shelf-view.slint";
+
+// ---------------------------------------------------------------------------
+// Top Picks for You (home/TopPicksShelf.tsx)
+// ---------------------------------------------------------------------------
+
+// One pick: `w-[240px] aspect-[3/4] rounded-xl` — art under a to-top gradient
+// (from-black/85 via-black/35), the logo badge top-right (size-6, bg-black/30)
+// and the caption bottom (p-4): text-lg bold white title over white/80
+// subtitle. The web's eyebrow (the pick's kind label) isn't in ShelfItem.
+component TopPicksCard inherits Rectangle {
+    in property <ShelfItem> pick;
+    callback play();
+
+    width: 240px;
+    height: 320px;                       // aspect-[3/4]
+    border-radius: Theme.radius-card;    // rounded-xl
+    clip: true;
+    background: Theme.joe;
+
+    // Background art
+    if root.pick.has-thumbnail: Image {
+        width: 100%;
+        height: 100%;
+        source: root.pick.thumbnail;
+        image-fit: cover;
+    }
+    if !root.pick.has-thumbnail: AppIcon {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        size: 40px;
+        source: @image-url("icons/songs.svg");
+        tint: Theme.system-secondary;
+    }
+
+    // Dark gradient for caption contrast
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        background: @linear-gradient(0deg, #000000d9, #00000059 50%, transparent);
+    }
+
+    // BeatFlow logo badge (top-3 right-3, size-6, bg-black/30)
+    Rectangle {
+        x: parent.width - 36px;
+        y: 12px;
+        width: 24px;
+        height: 24px;
+        border-radius: 12px;
+        background: #0000004d;
+
+        AppIcon {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            size: 14px;
+            source: @image-url("icons/logo-mark.svg");
+            tint: #ffffffe6;             // text-white/90
+        }
+    }
+
+    // Caption (bottom, p-4)
+    VerticalLayout {
+        x: 0;
+        y: parent.height - self.preferred-height;
+        width: parent.width;
+        padding: 16px;
+        spacing: 2px;                    // mt-0.5
+
+        Text {
+            text: root.pick.title;
+            font-size: 18px;             // text-lg (≥sm)
+            font-weight: 700;
+            color: #ffffff;
+            height: 45px;                // line-clamp-2
+            wrap: word-wrap;
+            overflow: elide;
+            vertical-alignment: top;
+        }
+
+        if root.pick.subtitle != "": Text {
+            text: root.pick.subtitle;
+            font-size: 12px;             // text-xs
+            color: #ffffffcc;            // text-white/80
+            overflow: elide;
+            wrap: no-wrap;
+        }
+    }
+
+    card-ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.play(); }
+    }
+}
+
+// The shelf: the type-title-2-emphasized header, then the scrolling row with
+// the glass arrows (gap-4, px-(--body-gutter)).
+component TopPicksShelf inherits Rectangle {
+    height: 22px + 14px + 320px;
+    background: transparent;
+
+    ShelfTitle {
+        x: Theme.body-gutter;
+        width: parent.width - 2 * Theme.body-gutter;
+        title: "Top Picks for You";
+    }
+
+    Rectangle {
+        y: 36px;                         // 22px header + mb-3.5
+        width: 100%;
+        height: 320px;
+
+        // Hover proxy for the arrows (see ShelfView).
+        shelf-ta := TouchArea {
+            width: 100%;
+            height: 100%;
+        }
+
+        scroller := Flickable {
+            width: 100%;
+            height: 100%;
+
+            HorizontalLayout {
+                spacing: 16px;           // gap-4
+                padding-left: Theme.body-gutter;
+                padding-right: Theme.body-gutter;
+
+                for pick in HomeData.top-picks: TopPicksCard {
+                    pick: pick;
+                    play => { HomeData.play(pick); }
+                }
+            }
+        }
+
+        if scroller.content-width > scroller.width: ShelfArrow {
+            forward: false;
+            shelf-hover: shelf-ta.has-hover;
+            clicked => { scroller.content-x += scroller.width - 2 * Theme.body-gutter; }
+        }
+        if scroller.content-width > scroller.width: ShelfArrow {
+            forward: true;
+            shelf-hover: shelf-ta.has-hover;
+            clicked => { scroller.content-x -= scroller.width - 2 * Theme.body-gutter; }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Find Your Mood (home/FindYourMoodShelf.tsx)
+// ---------------------------------------------------------------------------
+
+// MoodCanvas's emblem at its static frame: a stroke drawing sized to 70% of
+// the tile (the square MoodCanvas frame), stroke-width ≈ 2.2 × (119/110).
+// The web animates these per mood period; the native port draws the base
+// emblem. Paths stay within the M/L/C/Z subset Slint parses.
+component MoodEmblem inherits Rectangle {
+    in property <MoodItem> mood;
+
+    property <color> stroke: root.mood.stroke;
+
+    // ENERGY: the bolt polygon (drawBolt).
+    if root.mood.key == "Energy": Path {
+        width: 100%;
+        height: 100%;
+        viewbox-width: 100;
+        viewbox-height: 100;
+        commands: "M 48.6 12.3 L 88.6 12.3 L 53.2 50.9 L 87.7 50.9 L 11.4 89.5 L 40.9 61.4 L 10.5 61.4 Z";
+        stroke: root.stroke;
+        stroke-width: 2.4px;
+    }
+
+    // RELAX: the three swaying stones (the ellipse case at cy 17/38/66),
+    // drawn as bordered pills sized to the web's stone widths/heights.
+    if root.mood.key == "Relax": Rectangle {
+        width: 100%;
+        height: 100%;
+        background: transparent;
+
+        Rectangle {
+            x: (parent.width - parent.width * 0.44) / 2;
+            y: parent.height * 0.17 - parent.height * 0.09;
+            width: parent.width * 0.44;
+            height: parent.height * 0.18;
+            border-radius: self.height / 2;
+            border-width: 2.2px;
+            border-color: root.stroke;
+        }
+        Rectangle {
+            x: (parent.width - parent.width * 0.68) / 2;
+            y: parent.height * 0.38 - parent.height * 0.14;
+            width: parent.width * 0.68;
+            height: parent.height * 0.28;
+            border-radius: self.height / 2;
+            border-width: 2.2px;
+            border-color: root.stroke;
+        }
+        Rectangle {
+            x: (parent.width - parent.width * 0.84) / 2;
+            y: parent.height * 0.66 - parent.height * 0.18;
+            width: parent.width * 0.84;
+            height: parent.height * 0.36;
+            border-radius: self.height / 2;
+            border-width: 2.2px;
+            border-color: root.stroke;
+        }
+    }
+
+    // FEELING BLUE: the spiral (SPIRAL_STEPS), as a cubic chain.
+    if root.mood.key == "Feeling Blue": Path {
+        width: 100%;
+        height: 100%;
+        viewbox-width: 100;
+        viewbox-height: 100;
+        commands: "M 50 10 C 84 10 92 36 92 52 C 92 78 74 92 52 92 C 32 92 14 78 14 58 C 14 42 26 32 40 32 C 52 32 60 42 60 52 C 60 60 54 66 47 66 C 42 66 38 62 38 57";
+        stroke: root.stroke;
+        stroke-width: 2.4px;
+    }
+
+    // FEEL GOOD: the four-point star (drawStar).
+    if root.mood.key == "Feel Good": Path {
+        width: 100%;
+        height: 100%;
+        viewbox-width: 100;
+        viewbox-height: 100;
+        commands: "M 50 6 L 61 39 L 94 50 L 61 61 L 50 94 L 39 61 L 6 50 L 39 39 Z";
+        stroke: root.stroke;
+        stroke-width: 2.4px;
+    }
+
+    // FOCUS: the expanding rings (the arc case, share 0..1) as bordered
+    // circles, fading out toward the edge like the web's edgeFade.
+    if root.mood.key == "Focus": Rectangle {
+        width: 100%;
+        height: 100%;
+        background: transparent;
+
+        Rectangle {
+            width: parent.width;
+            height: parent.height;
+            border-radius: self.width / 2;
+            border-width: 2.2px;
+            border-color: root.stroke.transparentize(0.75);
+        }
+        Rectangle {
+            x: parent.width * 0.17;
+            y: parent.height * 0.17;
+            width: parent.width * 0.66;
+            height: parent.height * 0.66;
+            border-radius: self.width / 2;
+            border-width: 2.2px;
+            border-color: root.stroke.transparentize(0.4);
+        }
+        Rectangle {
+            x: parent.width * 0.33;
+            y: parent.height * 0.33;
+            width: parent.width * 0.34;
+            height: parent.height * 0.34;
+            border-radius: self.width / 2;
+            border-width: 2.2px;
+            border-color: root.stroke;
+        }
+    }
+
+    // HEARTBREAK: the dashed heart (drawHeart), solid here.
+    if root.mood.key == "Heartbreak": Path {
+        width: 100%;
+        height: 100%;
+        viewbox-width: 100;
+        viewbox-height: 100;
+        commands: "M 50 92 C 30 76 10 56 10 36 C 10 18 22 8 34 8 C 43 8 49 14 50 22 C 51 14 57 8 66 8 C 78 8 90 18 90 36 C 90 56 70 76 50 92 Z";
+        stroke: root.stroke;
+        stroke-width: 2.4px;
+    }
+
+    // LOVE: the beating heart (drawHeart).
+    if root.mood.key == "Love": Path {
+        width: 100%;
+        height: 100%;
+        viewbox-width: 100;
+        viewbox-height: 100;
+        commands: "M 50 92 C 30 76 10 56 10 36 C 10 18 22 8 34 8 C 43 8 49 14 50 22 C 51 14 57 8 66 8 C 78 8 90 18 90 36 C 90 56 70 76 50 92 Z";
+        stroke: root.stroke;
+        stroke-width: 2.4px;
+    }
+}
+
+// One mood: the square tile (rounded-xl) with the emblem and logo badge
+// (top-2.5 right-2.5, size-5.5, bg-black/25), the title below (mt-2, text-sm
+// semibold, text-key-accent on hover).
+component MoodTile inherits Rectangle {
+    in property <MoodItem> mood;
+    callback play();
+
+    width: 170px;                        // sm:w-[170px]
+    height: 170px + 8px + 20px;          // tile + mt-2 + title line
+    background: transparent;
+
+    Rectangle {
+        width: parent.width;
+        height: parent.width;            // aspect-square
+        border-radius: Theme.radius-card;
+        clip: true;
+        background: root.mood.background;
+
+        // The emblem (MoodCanvas's square frame: 70% of the tile, centred).
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.width) / 2;
+            width: parent.width * 0.7;
+            height: parent.width * 0.7;
+
+            MoodEmblem {
+                width: 100%;
+                height: 100%;
+                mood: root.mood;
+            }
+        }
+
+        // BeatFlow badge (top-2.5 right-2.5, size-5.5, bg-black/25)
+        Rectangle {
+            x: parent.width - 32px;
+            y: 10px;
+            width: 22px;
+            height: 22px;
+            border-radius: 11px;
+            background: #00000040;
+
+            AppIcon {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                size: 12px;
+                source: @image-url("icons/logo-mark.svg");
+                tint: #fffffff2;         // text-white/95
+            }
+        }
+
+        mood-ta := TouchArea {
+            mouse-cursor: MouseCursor.pointer;
+            clicked => { root.play(); }
+        }
+    }
+
+    Text {
+        y: parent.width + 8px;           // mt-2
+        width: parent.width;
+        text: root.mood.title;
+        font-size: 14px;                 // text-sm
+        font-weight: 600;
+        color: mood-ta.has-hover ? Theme.key-color : Theme.system-primary;
+        overflow: elide;
+        wrap: no-wrap;
+    }
+}
+
+// The mood shelf: the header with the "Show all" link (text-sm font-medium,
+// text-key-accent — the web token resolves to the key colour), then the
+// scrolling row (gap-3.5).
+component MoodShelf inherits Rectangle {
+    height: 22px + 14px + 198px;
+    background: transparent;
+
+    ShelfTitle {
+        x: Theme.body-gutter;
+        width: parent.width - 2 * Theme.body-gutter;
+        title: "Find Your Mood";
+    }
+
+    // "Show all" link, right of the title row (navigates /moods on the web;
+    // the moods page isn't in the native shell yet).
+    Rectangle {
+        y: 1px;
+        x: parent.width - Theme.body-gutter - 74px;
+        width: 74px;
+        height: 22px;
+        background: transparent;
+
+        HorizontalLayout {
+            spacing: 2px;                // gap-0.5
+
+            Text {
+                text: "Show all";
+                font-size: 14px;         // text-sm
+                font-weight: 500;
+                color: Theme.key-color;
+                vertical-alignment: center;
+            }
+
+            AppIcon {
+                source: @image-url("icons/forward.svg");
+                size: 16px;
+                tint: Theme.key-color;
+            }
+        }
+
+        TouchArea {
+            mouse-cursor: MouseCursor.pointer;
+        }
+    }
+
+    Rectangle {
+        y: 36px;                         // 22px header + mb-3.5
+        width: 100%;
+        height: 198px;
+
+        shelf-ta := TouchArea {
+            width: 100%;
+            height: 100%;
+        }
+
+        scroller := Flickable {
+            width: 100%;
+            height: 100%;
+
+            HorizontalLayout {
+                spacing: 14px;           // gap-3.5
+                padding-left: Theme.body-gutter;
+                padding-right: Theme.body-gutter;
+
+                for mood in HomeData.moods: MoodTile {
+                    mood: mood;
+                    play => { HomeData.play-mood(mood.key); }
+                }
+            }
+        }
+
+        if scroller.content-width > scroller.width: ShelfArrow {
+            forward: false;
+            shelf-hover: shelf-ta.has-hover;
+            clicked => { scroller.content-x += scroller.width - 2 * Theme.body-gutter; }
+        }
+        if scroller.content-width > scroller.width: ShelfArrow {
+            forward: true;
+            shelf-hover: shelf-ta.has-hover;
+            clicked => { scroller.content-x -= scroller.width - 2 * Theme.body-gutter; }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// HomePage (HomePage.tsx)
+// ---------------------------------------------------------------------------
+
+export component HomePage inherits Rectangle {
+    background: transparent;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+
+        content := VerticalLayout {
+            // Every shelf section's pt-9.
+            spacing: 36px;
+            // AppShell's pb that clears the floating pill (56 + 20 + 40).
+            padding-bottom: Theme.page-bottom-padding;
+
+            PageHeader { title: "Home"; }
+
+            // 1. Top Picks for You
+            if HomeData.top-picks.length > 0: TopPicksShelf { }
+
+            // 2. Recently Played (TrackShelf, the 4-row track columns)
+            if HomeData.recently-played.columns.length > 0: ShelfView {
+                shelf: HomeData.recently-played;
+                play-shelf(shelf, item) => { HomeData.play-shelf(shelf, item); }
+            }
+
+            // 3. The lead shelf, then Find Your Mood, then the rest —
+            //    HomePage's shelves.slice(0, 1) / slice(1) order.
+            for sh[i] in HomeData.shelves: Rectangle {
+                if i == 0: ShelfView {
+                    shelf: sh;
+                    play-shelf(shelf, item) => { HomeData.play-shelf(shelf, item); }
+                }
+            }
+
+            MoodShelf { }
+
+            for sh[i] in HomeData.shelves: Rectangle {
+                if i > 0: ShelfView {
+                    shelf: sh;
+                    play-shelf(shelf, item) => { HomeData.play-shelf(shelf, item); }
+                }
+            }
+        }
+        content-height: content.preferred-height;
+        content-width: self.width;
+    }
+}

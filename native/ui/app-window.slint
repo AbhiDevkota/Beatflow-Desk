@@ -1,0 +1,116 @@
+// The frameless shell window, per tauri.conf.json (1280×820, min 940×600,
+// title "BeatFlow"): the Mica-tinted stage, the sidebar, the player pill and
+// the top-right window controls. The top 32px strip is the drag region
+// (WindowControls.tsx's data-tauri-drag-div with double-click to maximize).
+//
+// Fonts are bundled at compile time: each `import "*.ttf"` registers into the
+// font collection, and the window's default family is DM Sans (tokens.css).
+
+import { Theme } from "theme.slint";
+import { Player, Ui, Search, HomeData, NewData } from "state.slint";
+import { Sidebar } from "sidebar.slint";
+import { PlayerBar } from "player-bar.slint";
+import { PageViewport } from "pages.slint";
+import { SidePanel } from "side-panel.slint";
+import { WindowControls } from "window-controls.slint";
+
+import "fonts/DMSans-Regular.ttf";
+import "fonts/DMSans-Medium.ttf";
+import "fonts/DMSans-SemiBold.ttf";
+import "fonts/DMSans-Bold.ttf";
+
+// Re-exported so the globals appear in the generated Rust API (main.rs
+// reads/writes them through app.global::<Player>() / ::<Ui>()).
+export { Player, Ui, Search, HomeData, NewData }
+
+export component AppWindow inherits Window {
+    title: "BeatFlow";
+    no-frame: true;
+    // tauri.conf.json: 1280×820 initial, min 940×600. The initial size is a
+    // preferred (not fixed) one — a fixed `width` would pin min=max and make
+    // the window non-resizable.
+    preferred-width: 1280px;
+    preferred-height: 820px;
+    min-width: 940px;
+    min-height: 600px;
+    // Frameless resize handles at the window's edge (6px, like Tauri's).
+    resize-border-width: 6px;
+    // The stage paints --pageBG at reduced alpha; the rest reads as Windows
+    // Mica behind the transparent window (main.rs applies it).
+    background: transparent;
+    default-font-family: "DM Sans";
+
+    callback minimize();
+    callback toggle-maximize();
+    // `close-requested` (not `close`, which shadows a Slint builtin).
+    callback close-requested();
+
+    // The page. The web body paints opaque --pageBG; here page-glass lets the
+    // Mica layer through (SLINT_FEASIBILITY.md, Feature 1).
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        background: Theme.page-glass;
+    }
+
+    Sidebar {
+        x: 0;
+        y: 0;
+        width: Theme.nav-width;
+        height: 100%;
+    }
+
+    PageViewport {
+        x: Theme.nav-width;
+        y: Theme.window-strip-height;
+        width: parent.width - Theme.nav-width;
+        height: parent.height - Theme.window-strip-height;
+    }
+
+    // left-(--web-navigation-width) bottom-(--player-bottom-offset): the pill
+    // re-centres in the space right of the sidebar.
+    PlayerBar {
+        x: Theme.nav-width;
+        y: parent.height - Theme.player-pill-height - Theme.player-bottom-offset;
+        width: parent.width - Theme.nav-width;
+        height: Theme.player-pill-height;
+    }
+
+    // Side panel drawer: slides in from the right when Ui.side-panel != "".
+    SidePanel {
+        x: Ui.side-panel == "" ? parent.width : parent.width - Theme.side-panel-width;
+        y: 0;
+        width: Theme.side-panel-width;
+        height: 100%;
+        animate x { duration: 300ms; easing: cubic-bezier(0.215, 0.61, 0.355, 1); }
+    }
+
+    // Top drag strip: fixed top-0 inset-x-0 h-8 pr-[132px], drag + double
+    // click to maximize. WindowMoveArea intercepts only once a press drags
+    // past its threshold, so the nested TouchArea still sees plain
+    // press/release for the double click.
+    Rectangle {
+        x: 0;
+        y: 0;
+        width: parent.width - Theme.window-controls-width;
+        height: Theme.window-strip-height;
+        background: transparent;
+
+        WindowMoveArea {
+            drag-ta := TouchArea {
+                double-clicked => { root.toggle-maximize(); }
+            }
+        }
+    }
+
+    WindowControls {
+        x: parent.width - Theme.window-controls-width;
+        y: 0;
+        width: Theme.window-controls-width;
+        height: Theme.window-strip-height;
+        maximized: Ui.maximized;
+        minimize => { root.minimize(); }
+        toggle-maximize => { root.toggle-maximize(); }
+        close-requested => { root.close-requested(); }
+    }
+}

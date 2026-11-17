@@ -1,0 +1,283 @@
+// The left glass navigation sidebar, ported from web/app/src/shell/Sidebar.tsx
+// (desktop layout; the mobile drawer variant arrives with the mobile shell).
+//
+// Row metrics are Sidebar.tsx's exact classes:
+//   item        h-9 p-1 mb-0.5 gap-2 rounded-nav type-body-reduced
+//   icon box    size-6, glyph 24px, key-coloured on the active page
+//   header      mt-4 px-2 py-1 type-callout-emphasized text-secondary
+// The signed-out state is mocked: no Library sections, no user playlists, and
+// AccountButton.tsx's "Continue With Google" pill in the footer.
+//
+// Components are declared before their use (Slint resolves top-down).
+
+import { ListView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Ui } from "state.slint";
+import { AppIcon } from "icons.slint";
+
+export struct NavRow {
+    label: string,
+    icon: string,   // icon file stem under ui/icons/
+    kind: int,      // 0 = nav item, 1 = section header
+}
+
+component NavDelegate inherits Rectangle {
+    in property <NavRow> row-data;
+
+    height: row-data.kind == 0 ? 38px : 39px; // h-9 + mb-0.5 / mt-4 + px-2 + py-1
+    background: transparent;
+
+    // ---- Section header (type-callout-emphasized text-secondary) ----------
+    Text {
+        visible: row-data.kind == 1;
+        y: 16px + 4px; // mt-4 + py-1
+        x: 8px;        // px-2
+        text: row-data.label;
+        font-size: Theme.size-callout;
+        font-weight: 600;
+        color: Theme.system-secondary;
+        overflow: elide;
+        wrap: no-wrap;
+    }
+
+    // ---- Nav item row ------------------------------------------------------
+    Rectangle {
+        visible: row-data.kind == 0;
+        y: 0;
+        height: 36px; // h-9
+        border-radius: Theme.radius-nav-item;
+
+        property <bool> active: row-data.label == Ui.active-route;
+
+        background: item-ta.has-hover ? Theme.system-quinary : (active ? Theme.nav-selected : transparent);
+        animate background { duration: 150ms; }
+
+        HorizontalLayout {
+            padding-left: 4px;  // p-1
+            padding-right: 4px;
+            spacing: 8px;       // gap-2
+            cross-axis-alignment: center;
+
+            AppIcon {
+                width: 24px;
+                height: 24px;
+                source: row-data.icon == "search" ? @image-url("icons/search.svg")
+                    : row-data.icon == "home" ? @image-url("icons/home.svg")
+                    : row-data.icon == "new" ? @image-url("icons/new.svg")
+                    : row-data.icon == "library" ? @image-url("icons/library.svg")
+                    : row-data.icon == "downloads" ? @image-url("icons/downloads.svg")
+                    : row-data.icon == "users" ? @image-url("icons/users.svg")
+                    : @image-url("icons/all-playlists.svg");
+                tint: active ? Theme.key-color : Theme.system-primary;
+                animate tint { duration: 150ms; }
+            }
+
+            Text {
+                text: row-data.label;
+                vertical-alignment: center;
+                font-size: Theme.size-body-reduced; // type-body-reduced 14px/20px
+                font-weight: 400;
+                color: Theme.system-primary;
+                overflow: elide;
+                wrap: no-wrap;
+                horizontal-stretch: 1;
+            }
+        }
+
+        item-ta := TouchArea {
+            clicked => { Ui.active-route = row-data.label; }
+        }
+    }
+}
+
+// AccountButton.tsx's signed-out pill:
+// glass-pill relative inline-flex flex-1 items-center justify-center gap-2 h-9
+// rounded-[10px] px-3.5 border border-white/10 hover:border-white/20
+// bg-white/[0.04] hover:bg-white/[0.08] text-primary active:scale-[0.98]
+component GooglePill inherits Rectangle {
+    border-radius: 10px;
+    border-width: 1px;
+    // white/[0.04] → white/[0.08] on hover; border white/10 → white/20
+    background: pill-ta.pressed ? #ffffff0f : pill-ta.has-hover ? #ffffff14 : #ffffff0a;
+    border-color: pill-ta.has-hover ? #ffffff33 : #ffffff1a;
+    animate background, border-color { duration: 150ms; }
+
+    // active:scale-[0.98] via height (Slint has no scale transform)
+    height: pill-ta.pressed ? 35.28px : 36px;
+    animate height { duration: 100ms; }
+
+    HorizontalLayout {
+        alignment: center;
+        cross-axis-alignment: center;
+        spacing: 8px;
+        padding-left: 14px;
+        padding-right: 14px;
+
+        // The Google G keeps its brand colours — no colorize.
+        Image {
+            source: @image-url("icons/google-g.svg");
+            width: 18px;
+            height: 18px;
+        }
+
+        Text {
+            text: "Continue With Google";
+            vertical-alignment: center;
+            font-size: 12.5px; // text-[12.5px] font-semibold
+            font-weight: 600;
+            letter-spacing: -0.1px; // tracking-tight
+            color: Theme.system-primary;
+            overflow: elide;
+            wrap: no-wrap;
+        }
+    }
+
+    pill-ta := TouchArea {
+        // Sign-in arrives with the account stage; no-op for now.
+        clicked => { }
+    }
+}
+
+// Sidebar footer's settings gear:
+// glass-pill size-9 rounded-[10px] border border-white/10 hover:border-white/20
+// bg-white/[0.04] hover:bg-white/[0.08] text-secondary hover:text-primary
+// active:scale-[0.98]
+component SettingsButton inherits Rectangle {
+    border-radius: 10px;
+    border-width: 1px;
+    background: gear-ta.pressed ? #ffffff0f : gear-ta.has-hover ? #ffffff14 : #ffffff0a;
+    border-color: gear-ta.has-hover ? #ffffff33 : #ffffff1a;
+    animate background, border-color { duration: 150ms; }
+
+    // active:scale-[0.98]
+    height: gear-ta.pressed ? 35.28px : 36px;
+    width: gear-ta.pressed ? 35.28px : 36px;
+    animate width, height { duration: 100ms; }
+
+    AppIcon {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        source: @image-url("icons/settings.svg");
+        size: 18px;
+        tint: gear-ta.has-hover ? Theme.system-primary : Theme.system-secondary;
+        animate tint { duration: 150ms; }
+    }
+
+    gear-ta := TouchArea {
+        clicked => { Ui.active-route = "Settings"; }
+    }
+}
+
+export component Sidebar inherits Rectangle {
+    width: Theme.nav-width;
+    background: Theme.nav-bg;
+    clip: true;
+
+    // border-r border-r-divider
+    Rectangle {
+        x: parent.width - 1px;
+        y: 0;
+        width: 1px;
+        height: parent.height;
+        background: Theme.divider;
+    }
+
+    // ---- Header: mt-2 ml-2 h-18 px-5 --------------------------------------
+    Rectangle {
+        x: 8px;
+        y: 8px;
+        width: parent.width - 8px;
+        height: 72px;
+
+        logo := Rectangle {
+            // inline-flex items-center gap-2 rounded-[6px] px-5 → the link hit
+            // area spans the row's content; px-5 is part of the container.
+            x: 0;
+            y: 0;
+            width: parent.width;
+            height: parent.height;
+
+            HorizontalLayout {
+                padding-left: 20px;
+                padding-right: 20px;
+                spacing: 8px;
+                alignment: start;
+                cross-axis-alignment: center;
+
+                AppIcon {
+                    source: @image-url("icons/logo-mark.svg");
+                    size: 22px;
+                    tint: Theme.system-primary;
+                }
+
+                Text {
+                    text: "BeatFlow";
+                    vertical-alignment: center;
+                    font-size: Theme.size-wordmark;
+                    font-weight: 700;
+                    letter-spacing: -0.19px; // tracking-[-0.01em] at 19px
+                    color: Theme.system-primary;
+                    overflow: elide;
+                    wrap: no-wrap;
+                }
+            }
+
+            logo-ta := TouchArea {
+                clicked => { Ui.active-route = "Home"; }
+            }
+        }
+    }
+
+    // ---- Scrollable nav list: flex-1 overflow-y-auto pr-3 pl-5 -------------
+    Rectangle {
+        y: 80px;
+        width: parent.width;
+        height: parent.height - 80px - 68px; // header + footer
+        clip: true;
+
+        ListView {
+            x: 20px;
+            width: parent.width - 32px; // pl-5 pr-3
+            height: 100%;
+
+            for row in root.rows: NavDelegate {
+                row-data: row;
+            }
+        }
+    }
+
+    property <[NavRow]> rows: [
+        // Sidebar.tsx PRIMARY
+        { label: "Search", icon: "search", kind: 0 },
+        { label: "Home", icon: "home", kind: 0 },
+        { label: "New", icon: "new", kind: 0 },
+        { label: "Library", icon: "library", kind: 0 },
+        { label: "Downloads", icon: "downloads", kind: 0 },
+        { label: "Listen Together", icon: "users", kind: 0 },
+        // PlaylistsNav's header; the signed-out account lists no playlists.
+        { label: "Playlists", icon: "", kind: 1 },
+        { label: "All Playlists", icon: "all-playlists", kind: 0 },
+    ];
+
+    // ---- Footer: pt-3 pr-3 pb-5 pl-5, AccountButton + settings gear --------
+    Rectangle {
+        y: parent.height - 68px;
+        width: parent.width;
+        height: 68px;
+
+        HorizontalLayout {
+            padding-left: 20px;
+            padding-right: 12px;
+            padding-top: 12px;
+            padding-bottom: 20px;
+            spacing: 8px;
+
+            // AccountButton.tsx, signed out: the "Continue With Google" pill
+            GooglePill {
+                horizontal-stretch: 1;
+            }
+
+            SettingsButton { }
+        }
+    }
+}

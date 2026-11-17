@@ -1,0 +1,108 @@
+// BeatFlow's design tokens, carried over verbatim from
+// web/app/src/styles/tokens.css (and global.css's `@theme inline`).
+//
+// The web app reads these as CSS custom properties with a light default and a
+// `prefers-color-scheme: dark` override; Slint has no cascade, so both palettes
+// live here and every consumer reads `Theme.<token>`.
+//
+// Colours are 8-digit hex `#rrggbbaa`, exactly as written in tokens.css.
+
+export global Theme {
+    // Mode (tokens.css `data-theme`; the desktop app launches dark).
+    in-out property <bool> is-dark: true;
+
+    // ---- Colour ----------------------------------------------------------
+    in-out property <color> page-bg: is-dark ? #1f1f1f : #ffffff;
+
+    in-out property <color> system-primary: is-dark ? #ffffffeb : #000000e0;
+    in-out property <color> system-secondary: is-dark ? #ffffffa3 : #0000008f;
+    in-out property <color> system-tertiary: is-dark ? #ffffff66 : #0000007a;
+    in-out property <color> system-quaternary: is-dark ? #ffffff1a : #0000001a;
+    in-out property <color> system-quinary: is-dark ? #ffffff0d : #0000000d;
+
+    in-out property <color> key-color: is-dark ? #fa586a : #d60017;
+    in-out property <color> key-color-rollover: is-dark ? #ff5f7a : #a20000;
+    in-out property <color> key-color-pressed: is-dark ? #ff4661 : #bb0000;
+    in-out property <color> key-color-bg: is-dark ? #fa233b : #d60017;
+
+    in-out property <color> system-red: is-dark ? #ff453a : #ff3b30;
+    in-out property <color> system-green: is-dark ? #32d74b : #28cd41;
+    in-out property <color> system-blue: is-dark ? #0a84ff : #007aff;
+    in-out property <color> system-gray: is-dark ? #98989d : #8e8e93;
+
+    in-out property <color> divider: is-dark ? #ffffff1a : #00000026;
+
+    in-out property <color> glass-material-bg: is-dark ? #26262899 : #f5f5f78c;
+    in-out property <color> glass-material-shadow: is-dark ? #00000033 : #0000001a;
+
+    // Materials the lockups and search field read (tokens.css).
+    in-out property <color> thin-material: is-dark ? #28282880 : #f6f6f67a;   // --systemStandardThinMaterial
+    in-out property <color> thick-material: is-dark ? #282828b3 : #f6f6f6b8;  // --systemStandardThickMaterial
+    in-out property <color> lockup-hover: #3333334d;                          // --lockupHoverBGColor
+    in-out property <color> search-border: is-dark ? #ffffff26 : #00000026;   // --searchBarBorderColor
+    // The search bar's glass (SearchPage.tsx's before:bg-header-material).
+    in-out property <color> header-material: is-dark ? #1e1e1ecc : #ffffffcc; // --systemHeaderMaterialSover
+
+    in-out property <color> nav-bg: is-dark ? #ebebf508 : #3c3c4308;
+    in-out property <color> nav-selected: is-dark ? #ffffff14 : #3c3c431a;
+
+    in-out property <color> player-bg: is-dark ? #222226b8 : #ffffffba;
+    in-out property <color> joe: is-dark ? #323232 : #ebebeb; // --genericJoeColor
+    in-out property <color> scrim: is-dark ? #00000073 : #00000073;
+    in-out property <color> radiosity-shadow: is-dark ? #0000004d : #0000001a;
+
+    // The window's base fill: the page colour at a slightly reduced alpha so
+    // the OS glass (Mica) reads behind it. The web body paints opaque
+    // --pageBG; the native window trades that for Windows 11 Mica instead
+    // (SLINT_FEASIBILITY.md, Feature 1 — no live backdrop-filter).
+    in-out property <color> page-glass: is-dark ? #1f1f1fed : #ffffffed;
+
+    // ---- Layout ------------------------------------------------------------
+    in-out property <length> nav-width: 260px;
+    in-out property <length> body-gutter: 25px;        // --body-gutter (tokens.css)
+    in-out property <length> player-pill-height: 56px;
+    in-out property <length> player-bottom-offset: 20px;
+    in-out property <length> side-panel-width: 300px;
+    in-out property <length> window-strip-height: 32px; // WindowControls drag strip (h-8)
+    in-out property <length> window-controls-width: 132px; // the 3 × 44px button trio
+    // AppShell.tsx: pb-[calc(var(--player-pill-height)+var(--player-bottom-offset)+40px)]
+    // — the page's bottom padding that clears the floating pill.
+    in-out property <length> page-bottom-padding: 116px;
+
+    // SearchField.tsx: the centred pill field (w-[min(492px,100%)], h-[38px]).
+    in-out property <length> search-field-width: 492px;
+    in-out property <length> search-field-height: 38px;
+
+    // ---- Radii -------------------------------------------------------------
+    in-out property <length> radius-artwork-small: 5px;
+    in-out property <length> radius-artwork-medium: 7px;
+    in-out property <length> radius-artwork-large: 10px;
+    in-out property <length> radius-nav-item: 8px;
+    in-out property <length> radius-track-row: 6px;
+    in-out property <length> radius-pill: 1000px;
+    // Tailwind rounded-xl (Top Picks cards, mood tiles).
+    in-out property <length> radius-card: 12px;
+
+    // ---- Motion ------------------------------------------------------------
+    // --ease-out-panel / --duration-panel (tokens.css). Slint's animate easing
+    // must be written literally at each use site; the curve is:
+    //   cubic-bezier(0.215, 0.61, 0.355, 1) over 300ms.
+
+    // ---- Type --------------------------------------------------------------
+    // tokens.css "font: <weight> <size>/<line-height>"; sizes as properties,
+    // weights are set inline (400/500/600/700). DM Sans is bundled via
+    // `import "fonts/*.ttf"` in app-window.slint.
+    in-out property <string> font-family: "DM Sans";
+    in-out property <length> size-header: 34px;          // --header-emphasized (700)
+    in-out property <length> size-large-title: 26px;     // --large-title
+    in-out property <length> size-title-1: 22px;         // --title-1-emphasized (700)
+    in-out property <length> size-title-2: 17px;         // --title-2(-emphasized) (700)
+    in-out property <length> size-title-3: 15px;         // --title-3(-emphasized 600)
+    in-out property <length> size-body: 13px;            // --body
+    in-out property <length> size-body-reduced: 14px;    // --body-reduced
+    in-out property <length> size-callout: 12px;         // --callout(-medium/-emphasized)
+    in-out property <length> size-subhead: 11px;         // --subhead-emphasized / time labels
+    in-out property <length> size-caption-2: 10px;       // --caption-2
+    in-out property <length> size-footnote: 11px;        // --footnote
+    in-out property <length> size-wordmark: 19px;        // sidebar wordmark 700 19px/24px
+}

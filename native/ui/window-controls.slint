@@ -1,0 +1,80 @@
+// Discord-style frameless window controls, ported from
+// web/app/src/shell/WindowControls.tsx: a 3 × 44px button trio in the top-right
+// (132px total), each 32px tall, with the Windows-close red hover, and a
+// restore glyph once maximized.
+//
+// Components are declared before their use (Slint resolves top-down).
+
+import { Theme } from "theme.slint";
+import { AppIcon } from "icons.slint";
+
+component WinButton inherits Rectangle {
+    in property <image> icon;
+    in property <length> icon-size;
+    in property <bool> is-close: false;
+    callback clicked();
+
+    width: 44px;
+    height: Theme.window-strip-height;
+
+    // hover:bg-quinary hover:text-primary active:bg-quaternary
+    // close: hover:bg-[#e81123] hover:text-white active:bg-[#c40f1f]
+    property <color> hover-bg: is-close ? #e81123 : Theme.system-quinary;
+    property <color> active-bg: is-close ? #c40f1f : Theme.system-quaternary;
+    property <color> hover-fg: is-close ? #ffffff : Theme.system-primary;
+
+    background: ta.pressed ? active-bg : ta.has-hover ? hover-bg : transparent;
+    animate background { duration: 150ms; }
+
+    ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+
+    AppIcon {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        source: root.icon;
+        size: root.icon-size;
+        tint: ta.pressed || ta.has-hover ? root.hover-fg : Theme.system-secondary;
+        animate tint { duration: 150ms; }
+    }
+}
+
+export component WindowControls inherits Rectangle {
+    callback minimize();
+    callback toggle-maximize();
+    // `close-requested` (not `close`, which shadows a Slint builtin).
+    callback close-requested();
+
+    in-out property <bool> maximized: false;
+
+    width: Theme.window-controls-width;
+    height: Theme.window-strip-height;
+    background: transparent;
+
+    HorizontalLayout {
+        // Minimize — lucide Minus 14px, stroke 1.75
+        WinButton {
+            icon: @image-url("icons/minus.svg");
+            icon-size: 14px;
+            clicked => { root.minimize(); }
+        }
+
+        // Maximize / Restore — lucide Square 11px stroke 1.5; the restore
+        // glyph is WindowControls.tsx's own 12×12 two-square drawing.
+        WinButton {
+            icon: root.maximized ? @image-url("icons/restore.svg") : @image-url("icons/square.svg");
+            icon-size: root.maximized ? 12px : 11px;
+            clicked => { root.toggle-maximize(); }
+        }
+
+        // Close — lucide X 15px, stroke 1.75, #e81123/#c40f1f hover/active
+        WinButton {
+            is-close: true;
+            icon: @image-url("icons/x.svg");
+            icon-size: 15px;
+            clicked => { root.close-requested(); }
+        }
+    }
+}

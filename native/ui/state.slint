@@ -1,0 +1,148 @@
+// The native shell's state, mirroring the Zustand stores the web shell reads
+// (state/player.ts, state/ui.ts) plus the page models, as Slint globals.
+//
+// Shelf rendering follows web/app/src/components/shelf.ts's kinds:
+//   layout 0 = square lockups (G), 1 = 4-row track columns (TrackLockupsShelf),
+//   2 = artist circles (H), 3 = 16:9 videos (C).
+
+export struct ShelfItem {
+    title: string,
+    subtitle: string,
+    video-id: string,
+    thumbnail: image,
+    has-thumbnail: bool,
+    // Artists render as circles (CircleLockup).
+    round: bool,
+}
+
+// One fixed-height column of the `tracks` layout (ShelfColumn in Rust).
+export struct ShelfColumn {
+    items: [ShelfItem],
+}
+
+export struct Shelf {
+    title: string,
+    // Small line above the title ("GRAPE JUICE" on Listen again).
+    strapline: string,
+    layout: int,
+    // Square / circle / video layouts.
+    cards: [ShelfItem],
+    // The `tracks` layout's fixed-height columns.
+    columns: [ShelfColumn],
+}
+
+export struct MoodItem {
+    key: string,
+    title: string,
+    background: color,
+    stroke: color,
+}
+
+export struct SearchResult {
+    title: string,
+    artist: string,
+    video-id: string,
+    thumbnail: image,
+    has-thumbnail: bool,
+}
+
+// A query completion from music/get_search_suggestions.
+export struct SuggestionItem {
+    text: string,
+}
+
+// A browse-category tile (CategoryTiles.tsx; the landing state of Search).
+export struct CategoryItem {
+    title: string,
+    // The query the tile searches.
+    query: string,
+    base-color: color,
+}
+
+// state/player.ts
+export global Player {
+    // nowPlaying
+    in-out property <bool> has-track: true;
+    in-out property <string> title: "";
+    in-out property <string> artist: "";
+    in-out property <image> artwork;
+    in-out property <bool> has-artwork: false;
+
+    // status: 0 = paused, 1 = playing, 2 = buffering/loading (BeatLoader)
+    in-out property <int> status: 0;
+
+    // progress is a 0..1 fraction of duration; elapsed is seconds.
+    in-out property <float> progress: 0;
+    in-out property <float> elapsed: 0;
+    in-out property <float> duration: 0;
+
+    // transport toggles
+    in-out property <bool> shuffle: false;
+    in-out property <int> repeat: 0; // 0 off, 1 all, 2 one
+    in-out property <float> volume: 1;
+    in-out property <bool> muted: false;
+    in-out property <bool> has-next: true;
+
+    // 0..1 phase of the BeatLoader
+    in-out property <float> beat-phase: 0;
+
+    callback toggle-play();
+    callback next();
+    callback previous();
+    callback toggle-shuffle();
+    callback cycle-repeat();
+    callback seeked(float);
+    callback set-volume(float);
+    callback toggle-mute();
+    callback wheel-volume(float);
+}
+
+// state/ui.ts (shell-relevant slice)
+export global Ui {
+    in-out property <string> active-route: "Home";
+    in-out property <bool> maximized: false;
+    in-out property <string> side-panel: "";
+}
+
+// search state (SearchPage.tsx)
+export global Search {
+    // Grouped results, in shelvesFor's order: Top Results + each shelf.
+    in-out property <[SearchResult]> top-results;
+    in-out property <[ShelfItem]> artists;
+    in-out property <[ShelfItem]> albums;
+    // The Songs group renders as the `tracks` layout (4-row columns).
+    in-out property <Shelf> songs;
+    in-out property <[ShelfItem]> playlists;
+    // The Videos group renders as the `video` layout (16:9 lockups).
+    in-out property <Shelf> videos;
+
+    // The field's completions while typing (SearchField.tsx's useSuggestions).
+    in-out property <[SuggestionItem]> suggestions;
+
+    in-out property <string> query: "";
+    callback search(string);
+    callback suggest(string);
+    callback play(SearchResult);
+    callback play-shelf(Shelf, ShelfItem);
+}
+
+// Home page state (HomePage.tsx)
+export global HomeData {
+    in-out property <[ShelfItem]> top-picks;
+    // The account's history renders as a `tracks` shelf (4-row columns).
+    in-out property <Shelf> recently-played;
+    in-out property <[MoodItem]> moods;
+    in-out property <[Shelf]> shelves;
+    callback play(ShelfItem);
+    callback play-shelf(Shelf, ShelfItem);
+    callback play-mood(string);
+}
+
+// New / Explore page state (NewPage.tsx)
+export global NewData {
+    in-out property <[ShelfItem]> new-albums;
+    in-out property <Shelf> top-charts;
+    in-out property <[ShelfItem]> playlists;
+    callback play(ShelfItem);
+    callback play-shelf(Shelf, ShelfItem);
+}

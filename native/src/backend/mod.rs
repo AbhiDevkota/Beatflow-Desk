@@ -15,9 +15,7 @@ pub mod webmusic;
 pub mod ytm;
 pub mod ytmapi;
 pub use types::*;
-// Deferred (require ytm/ytmapi/webmusic and many deps):
-// pub mod dash;
-// pub mod downloads;
+pub mod lyrics;
+pub mod downloads;
 // pub mod images;
 // pub mod innertube;
-// pub mod lyrics;

@@ -7,12 +7,13 @@
 // font collection, and the window's default family is DM Sans (tokens.css).
 
 import { Theme } from "theme.slint";
-import { Player, Ui, Search, HomeData, NewData } from "state.slint";
+import { Player, Ui, Search, HomeData, NewData, CollectionData, ArtistData, QueueData, LyricsData, DownloadsData, LibraryData, SettingsData } from "state.slint";
 import { Sidebar } from "sidebar.slint";
 import { PlayerBar } from "player-bar.slint";
 import { PageViewport } from "pages.slint";
 import { SidePanel } from "side-panel.slint";
 import { WindowControls } from "window-controls.slint";
+import { FullScreenPlayer } from "fullscreen-player.slint";
 
 import "fonts/DMSans-Regular.ttf";
 import "fonts/DMSans-Medium.ttf";
@@ -21,7 +22,7 @@ import "fonts/DMSans-Bold.ttf";
 
 // Re-exported so the globals appear in the generated Rust API (main.rs
 // reads/writes them through app.global::<Player>() / ::<Ui>()).
-export { Player, Ui, Search, HomeData, NewData }
+export { Player, Ui, Search, HomeData, NewData, CollectionData, ArtistData, QueueData, LyricsData, DownloadsData, LibraryData, SettingsData }
 
 export component AppWindow inherits Window {
     title: "BeatFlow";
@@ -83,6 +84,14 @@ export component AppWindow inherits Window {
         width: Theme.side-panel-width;
         height: 100%;
         animate x { duration: 300ms; easing: cubic-bezier(0.215, 0.61, 0.355, 1); }
+    }
+
+    // Full-screen player overlay
+    if Ui.fullscreen-player: FullScreenPlayer {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
     }
 
     // Top drag strip: fixed top-0 inset-x-0 h-8 pr-[132px], drag + double

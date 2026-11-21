@@ -29,6 +29,8 @@ fn seed_defaults(app: &App) {
         thumbnail: Default::default(),
         has_thumbnail: false,
         round: false,
+        target_id: video_id.into(),
+        target_type: "song".into(),
     };
 
     let default_new_releases = vec![

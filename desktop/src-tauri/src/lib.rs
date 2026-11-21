@@ -3518,6 +3518,32 @@ fn start_local_ipc_server(app_handle: tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  // Configure WebView2 to utilize native system GPU hardware acceleration (Direct3D 11 via ANGLE)
+  // and aggressive memory optimization flags to minimize memory footprint and avoid software WebGPU emulation.
+  #[cfg(target_os = "windows")]
+  {
+    if std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGS").is_err() {
+      // Safety: Invoked at the very beginning of the program before any threads or WebView2 instances are spawned.
+      unsafe {
+        std::env::set_var(
+          "WEBVIEW2_ADDITIONAL_BROWSER_ARGS",
+          "--use-angle=d3d11 \
+           --enable-gpu-rasterization \
+           --force-gpu-rasterization \
+           --enable-zero-copy \
+           --disable-software-rasterizer \
+           --enable-hardware-overlays \
+           --renderer-process-limit=1 \
+           --memory-model=low \
+           --disable-background-networking \
+           --disable-component-update \
+           --disable-features=Translate,OptimizationHints,MediaRouter,CalculateNativeWinOcclusion,InterestFeedContentSuggestions,msWebOOUI,msPdfOOUI,msSmartScreenProtection \
+           --js-flags=--max-old-space-size=256",
+        );
+      }
+    }
+  }
+
   let mut initial_arg = String::new();
   for arg in std::env::args().skip(1) {
     if arg.starts_with("beatflow://") {

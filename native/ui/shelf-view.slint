@@ -121,6 +121,11 @@ export component ShelfView inherits Rectangle {
         scroller := Flickable {
             width: 100%;
             height: 100%;
+            content-height: self.height;
+            content-width: root.shelf.layout == 1 ? (root.shelf.columns.length * 290px + 2 * Theme.body-gutter)
+                : root.shelf.layout == 2 ? (root.shelf.cards.length * 138px + 2 * Theme.body-gutter)
+                : root.shelf.layout == 3 ? (root.shelf.cards.length * 220px + 2 * Theme.body-gutter)
+                : (root.shelf.cards.length * 164px + 2 * Theme.body-gutter);
 
             // --- square layout (G) --------------------------------------
             if root.shelf.layout == 0: HorizontalLayout {

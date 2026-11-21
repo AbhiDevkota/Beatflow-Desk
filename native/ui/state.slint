@@ -13,6 +13,8 @@ export struct ShelfItem {
     has-thumbnail: bool,
     // Artists render as circles (CircleLockup).
     round: bool,
+    target-id: string,
+    target-type: string, // "song", "album", "playlist", "artist"
 }
 
 // One fixed-height column of the `tracks` layout (ShelfColumn in Rust).
@@ -59,6 +61,37 @@ export struct CategoryItem {
     base-color: color,
 }
 
+// Track row inside an album or playlist
+export struct CollectionTrack {
+    index: int,
+    title: string,
+    artist: string,
+    duration: string,
+    video-id: string,
+    thumbnail: image,
+    has-thumbnail: bool,
+    explicit: bool,
+    plays: string,
+}
+
+// Queue item
+export struct QueueTrack {
+    index: int,
+    title: string,
+    artist: string,
+    duration: string,
+    video-id: string,
+    thumbnail: image,
+    has-thumbnail: bool,
+    active: bool,
+}
+
+// Lyrics line
+export struct LyricsLine {
+    text: string,
+    active: bool,
+}
+
 // state/player.ts
 export global Player {
     // nowPlaying
@@ -100,8 +133,17 @@ export global Player {
 // state/ui.ts (shell-relevant slice)
 export global Ui {
     in-out property <string> active-route: "Home";
+    in-out property <string> previous-route: "Home";
     in-out property <bool> maximized: false;
     in-out property <string> side-panel: "";
+    in-out property <bool> fullscreen-player: false;
+
+    callback navigate-to(string);
+    callback navigate-back();
+    callback open-collection(string, bool); // id, is_album
+    callback open-artist(string);
+    callback toggle-fullscreen();
+    callback close-fullscreen();
 }
 
 // search state (SearchPage.tsx)
@@ -131,7 +173,10 @@ export global HomeData {
     in-out property <[ShelfItem]> top-picks;
     // The account's history renders as a `tracks` shelf (4-row columns).
     in-out property <Shelf> recently-played;
+    in-out property <bool> has-recently-played: false;
     in-out property <[MoodItem]> moods;
+    in-out property <Shelf> lead-shelf;
+    in-out property <bool> has-lead-shelf: false;
     in-out property <[Shelf]> shelves;
     callback play(ShelfItem);
     callback play-shelf(Shelf, ShelfItem);
@@ -145,4 +190,110 @@ export global NewData {
     in-out property <[ShelfItem]> playlists;
     callback play(ShelfItem);
     callback play-shelf(Shelf, ShelfItem);
+}
+
+// Album & Playlist state (AlbumPage.tsx, PlaylistPage.tsx)
+export global CollectionData {
+    in-out property <string> id: "";
+    in-out property <string> title: "";
+    in-out property <string> subtitle: "";
+    in-out property <string> byline: "";
+    in-out property <string> description: "";
+    in-out property <image> thumbnail;
+    in-out property <bool> has-thumbnail: false;
+    in-out property <bool> is-album: true;
+    in-out property <[CollectionTrack]> tracks;
+    in-out property <[Shelf]> more;
+    in-out property <bool> loading: false;
+
+    callback play-track(int);
+    callback play-all();
+    callback shuffle-all();
+    callback back();
+}
+
+// Artist page state (ArtistPage.tsx)
+export global ArtistData {
+    in-out property <string> id: "";
+    in-out property <string> name: "";
+    in-out property <string> subscribers: "";
+    in-out property <string> description: "";
+    in-out property <image> banner;
+    in-out property <bool> has-banner: false;
+    in-out property <image> logo;
+    in-out property <bool> has-logo: false;
+    in-out property <[CollectionTrack]> top-songs;
+    in-out property <[ShelfItem]> albums;
+    in-out property <[ShelfItem]> singles;
+    in-out property <[ShelfItem]> similar;
+    in-out property <bool> loading: false;
+
+    callback play-top(int);
+    callback play-all();
+    callback open-album(string);
+    callback open-artist(string);
+    callback back();
+}
+
+// Queue state for SidePanel drawer
+export global QueueData {
+    in-out property <[QueueTrack]> items;
+    in-out property <int> current-index: 0;
+
+    callback jump-to(int);
+    callback clear();
+}
+
+// Lyrics state for SidePanel drawer
+export global LyricsData {
+    in-out property <[LyricsLine]> lines;
+    in-out property <int> current-line: 0;
+    in-out property <bool> has-lyrics: false;
+}
+
+// Downloads state (DownloadsPage.tsx)
+export global DownloadsData {
+    in-out property <[CollectionTrack]> tracks;
+    in-out property <int> count: 0;
+    in-out property <string> total-size: "0 MB";
+    in-out property <bool> loading: false;
+
+    callback play-track(int);
+    callback play-all();
+    callback shuffle-all();
+    callback open-folder();
+    callback refresh();
+}
+
+// Library state (LibraryPage.tsx)
+export global LibraryData {
+    in-out property <string> active-tab: "Playlists"; // "Playlists", "Albums", "Songs"
+    in-out property <[ShelfItem]> playlists;
+    in-out property <[ShelfItem]> albums;
+    in-out property <[CollectionTrack]> songs;
+    in-out property <bool> loading: false;
+
+    callback set-tab(string);
+    callback play-song(int);
+    callback play-all();
+    callback shuffle-all();
+    callback refresh();
+}
+
+// Settings state (SettingsPage.tsx)
+export global SettingsData {
+    in-out property <string> active-category: "playback"; // "playback", "quality", "visuals", "storage", "about"
+    in-out property <string> audio-quality: "High (256 kbps AAC)";
+    in-out property <bool> animated-art: true;
+    in-out property <bool> discord-rpc: true;
+    in-out property <string> download-folder: "";
+    in-out property <string> cache-size: "128 MB";
+    in-out property <string> version: "BeatFlow Native 0.1.0";
+
+    callback set-category(string);
+    callback set-audio-quality(string);
+    callback toggle-animated-art();
+    callback toggle-discord-rpc();
+    callback open-download-folder();
+    callback clear-cache();
 }

@@ -1,0 +1,439 @@
+// Apple Music Full-Screen Player, matching web/app/src/shell/FullScreenPlayer.tsx.
+// Immersive full-window player overlay with dynamic mesh backdrop, large album artwork,
+// large synced karaoke lyrics, and full transport controls.
+
+import { Theme } from "theme.slint";
+import { Player, Ui, QueueData, LyricsData, LyricsLine } from "state.slint";
+import { MeshBackdrop } from "mesh-backdrop.slint";
+
+export component FullScreenPlayer inherits Rectangle {
+    background: transparent;
+
+    // Background Mesh
+    MeshBackdrop {
+        width: 100%;
+        height: 100%;
+    }
+
+    // Top control strip
+    HorizontalLayout {
+        x: 0;
+        y: 12px;
+        width: 100%;
+        height: 48px;
+        padding-left: 28px;
+        padding-right: 28px;
+        alignment: space-between;
+
+        // Minimize Button (Chevron Down)
+        Rectangle {
+            width: 36px;
+            height: 36px;
+            border-radius: 18px;
+            background: min-ta.has-hover ? #ffffff25 : #ffffff12;
+
+            min-ta := TouchArea {
+                clicked => { Ui.close-fullscreen(); }
+            }
+
+            Image {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: 18px;
+                height: 18px;
+                source: @image-url("icons/chevron-down.svg");
+                colorize: #ffffff;
+            }
+        }
+
+        // Title
+        Text {
+            text: "Now Playing";
+            font-size: Theme.size-subheadline;
+            font-weight: 600;
+            color: #ffffffaa;
+            vertical-alignment: center;
+        }
+
+        // Close button
+        Rectangle {
+            width: 36px;
+            height: 36px;
+            border-radius: 18px;
+            background: close-ta.has-hover ? #ffffff25 : #ffffff12;
+
+            close-ta := TouchArea {
+                clicked => { Ui.close-fullscreen(); }
+            }
+
+            Image {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: 14px;
+                height: 14px;
+                source: @image-url("icons/x.svg");
+                colorize: #ffffff;
+            }
+        }
+    }
+
+    // Main 2-Column Stage
+    HorizontalLayout {
+        x: 40px;
+        y: 64px;
+        width: parent.width - 80px;
+        height: parent.height - 84px;
+        spacing: 48px;
+
+        // LEFT COLUMN: Artwork, Track Info, Scrubber, Transport
+        VerticalLayout {
+            width: 440px;
+            alignment: center;
+            spacing: 20px;
+
+            // Artwork with radiant glow shadow
+            Rectangle {
+                width: 340px;
+                height: 340px;
+                border-radius: 14px;
+                clip: false;
+
+                // Ambient glow behind artwork
+                Rectangle {
+                    x: -16px;
+                    y: -16px;
+                    width: parent.width + 32px;
+                    height: parent.height + 32px;
+                    border-radius: 24px;
+                    background: @radial-gradient(circle, #ff2d5530 0%, #00000000 70%);
+                }
+
+                // Artwork container
+                Rectangle {
+                    width: 100%;
+                    height: 100%;
+                    border-radius: 14px;
+                    clip: true;
+                    background: #18181c;
+
+                    if Player.has-artwork: Image {
+                        width: 100%;
+                        height: 100%;
+                        image-fit: cover;
+                        source: Player.artwork;
+                    }
+
+                    if !Player.has-artwork: Image {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        width: 80px;
+                        height: 80px;
+                        source: @image-url("icons/albums.svg");
+                        colorize: #ffffff44;
+                    }
+                }
+            }
+
+            // Track details
+            VerticalLayout {
+                spacing: 4px;
+
+                Text {
+                    text: Player.title != "" ? Player.title : "Not Playing";
+                    font-size: 22px;
+                    font-weight: 700;
+                    color: #ffffff;
+                    overflow: elide;
+                }
+
+                Text {
+                    text: Player.artist != "" ? Player.artist : "BeatFlow";
+                    font-size: 16px;
+                    font-weight: 500;
+                    color: #ffffff99;
+                    overflow: elide;
+                }
+            }
+
+            // Scrubber
+            VerticalLayout {
+                spacing: 6px;
+
+                // Seek bar
+                Rectangle {
+                    height: 16px;
+                    background: transparent;
+
+                    scrub-ta := TouchArea {
+                        clicked => {
+                            if (self.width > 0) {
+                                Player.seeked(clamp(self.mouse-x / self.width, 0.0, 1.0));
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        y: (parent.height - self.height) / 2;
+                        width: 100%;
+                        height: scrub-ta.has-hover ? 6px : 4px;
+                        border-radius: 3px;
+                        background: #ffffff30;
+                        animate height { duration: 100ms; }
+
+                        // Progress fill
+                        Rectangle {
+                            x: 0;
+                            y: 0;
+                            width: parent.width * clamp(Player.progress, 0.0, 1.0);
+                            height: 100%;
+                            border-radius: 3px;
+                            background: #ffffff;
+                        }
+                    }
+                }
+
+                // Time labels
+                HorizontalLayout {
+                    alignment: space-between;
+
+                    Text {
+                        text: Math.floor(Player.elapsed / 60) + ":" + (Math.floor(Player.elapsed) - Math.floor(Player.elapsed / 60) * 60 < 10 ? "0" : "") + (Math.floor(Player.elapsed) - Math.floor(Player.elapsed / 60) * 60);
+                        font-size: 12px;
+                        color: #ffffff77;
+                    }
+
+                    Text {
+                        text: "-" + Math.floor((Player.duration - Player.elapsed) / 60) + ":" + (Math.floor(Player.duration - Player.elapsed) - Math.floor((Player.duration - Player.elapsed) / 60) * 60 < 10 ? "0" : "") + (Math.floor(Player.duration - Player.elapsed) - Math.floor((Player.duration - Player.elapsed) / 60) * 60);
+                        font-size: 12px;
+                        color: #ffffff77;
+                    }
+                }
+            }
+
+            // Transport Row
+            HorizontalLayout {
+                alignment: center;
+                spacing: 28px;
+
+                // Shuffle
+                Rectangle {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 18px;
+                    background: shuf-ta.has-hover ? #ffffff18 : transparent;
+
+                    shuf-ta := TouchArea {
+                        clicked => { Player.toggle-shuffle(); }
+                    }
+
+                    Image {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        width: 20px;
+                        height: 20px;
+                        source: @image-url("icons/shuffle.svg");
+                        colorize: Player.shuffle ? Theme.accent-red : #ffffff88;
+                    }
+                }
+
+                // Previous
+                Rectangle {
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 22px;
+                    background: prev-ta.has-hover ? #ffffff18 : transparent;
+
+                    prev-ta := TouchArea {
+                        clicked => { Player.previous(); }
+                    }
+
+                    Image {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        width: 24px;
+                        height: 24px;
+                        source: @image-url("icons/backward.svg");
+                        colorize: #ffffff;
+                    }
+                }
+
+                // Big Play/Pause Platter
+                Rectangle {
+                    width: 56px;
+                    height: 56px;
+                    border-radius: 28px;
+                    background: #ffffff;
+
+                    play-ta := TouchArea {
+                        clicked => { Player.toggle-play(); }
+                    }
+
+                    Image {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        width: 24px;
+                        height: 24px;
+                        source: Player.status == 1 ? @image-url("icons/pause.svg") : @image-url("icons/play.svg");
+                        colorize: #000000;
+                    }
+                }
+
+                // Next
+                Rectangle {
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 22px;
+                    background: next-ta.has-hover ? #ffffff18 : transparent;
+
+                    next-ta := TouchArea {
+                        clicked => { Player.next(); }
+                    }
+
+                    Image {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        width: 24px;
+                        height: 24px;
+                        source: @image-url("icons/forward.svg");
+                        colorize: #ffffff;
+                    }
+                }
+
+                // Repeat
+                Rectangle {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 18px;
+                    background: rep-ta.has-hover ? #ffffff18 : transparent;
+
+                    rep-ta := TouchArea {
+                        clicked => { Player.cycle-repeat(); }
+                    }
+
+                    Image {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        width: 20px;
+                        height: 20px;
+                        source: Player.repeat == 2 ? @image-url("icons/repeat-one.svg") : @image-url("icons/repeat.svg");
+                        colorize: Player.repeat > 0 ? Theme.accent-red : #ffffff88;
+                    }
+                }
+            }
+
+            // Volume Row
+            HorizontalLayout {
+                spacing: 12px;
+                alignment: center;
+
+                Image {
+                    y: (parent.height - self.height) / 2;
+                    width: 16px;
+                    height: 16px;
+                    source: @image-url("icons/volume-1.svg");
+                    colorize: #ffffff77;
+                }
+
+                Rectangle {
+                    width: 180px;
+                    height: 14px;
+                    background: transparent;
+
+                    vol-ta := TouchArea {
+                        clicked => {
+                            if (self.width > 0) {
+                                Player.set-volume(clamp(self.mouse-x / self.width, 0.0, 1.0));
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        y: (parent.height - self.height) / 2;
+                        width: 100%;
+                        height: 4px;
+                        border-radius: 2px;
+                        background: #ffffff30;
+
+                        Rectangle {
+                            x: 0;
+                            y: 0;
+                            width: parent.width * clamp(Player.volume, 0.0, 1.0);
+                            height: 100%;
+                            border-radius: 2px;
+                            background: #ffffff;
+                        }
+                    }
+                }
+
+                Image {
+                    y: (parent.height - self.height) / 2;
+                    width: 16px;
+                    height: 16px;
+                    source: @image-url("icons/volume-3.svg");
+                    colorize: #ffffff77;
+                }
+            }
+        }
+
+        // RIGHT COLUMN: Synced Karaoke Lyrics
+        VerticalLayout {
+            horizontal-stretch: 1;
+            padding-top: 20px;
+            padding-bottom: 20px;
+            spacing: 16px;
+
+            Text {
+                text: "Lyrics";
+                font-size: Theme.size-callout;
+                font-weight: 600;
+                color: #ffffffaa;
+            }
+
+            if !LyricsData.has-lyrics: Rectangle {
+                border-radius: 12px;
+                background: #ffffff0a;
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 12px;
+
+                    Image {
+                        x: (parent.width - self.width) / 2;
+                        width: 32px;
+                        height: 32px;
+                        source: @image-url("icons/lyrics.svg");
+                        colorize: #ffffff44;
+                    }
+
+                    Text {
+                        text: "Looking for synced lyrics...";
+                        font-size: 16px;
+                        color: #ffffff77;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            if LyricsData.has-lyrics: Flickable {
+                horizontal-stretch: 1;
+                content-width: self.width;
+                content-height: lyrics-vbox.preferred-height;
+
+                lyrics-vbox := VerticalLayout {
+                    spacing: 18px;
+                    padding-bottom: 80px;
+
+                    for line[idx] in LyricsData.lines: Text {
+                        text: line.text;
+                        font-size: line.active ? 26px : 20px;
+                        font-weight: line.active ? 700 : 500;
+                        color: line.active ? #ffffff : #ffffff40;
+                        wrap: word-wrap;
+                        animate font-size { duration: 200ms; }
+                        animate color { duration: 200ms; }
+                    }
+                }
+            }
+        }
+    }
+}

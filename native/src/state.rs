@@ -23,6 +23,7 @@ pub struct PlaybackState {
     pub current_track: Arc<Mutex<Option<TrackItem>>>,
     pub queue: Arc<Mutex<Vec<TrackItem>>>,
     pub queue_index: Arc<Mutex<usize>>,
+    pub active_lyrics: Arc<Mutex<Option<Vec<crate::backend::lyrics::Line>>>>,
     pub image_cache: ImageCache,
 }
 
@@ -34,6 +35,7 @@ impl PlaybackState {
             current_track: Arc::new(Mutex::new(None)),
             queue: Arc::new(Mutex::new(Vec::new())),
             queue_index: Arc::new(Mutex::new(0)),
+            active_lyrics: Arc::new(Mutex::new(None)),
             image_cache,
         }
     }

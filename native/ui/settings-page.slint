@@ -1,0 +1,508 @@
+// Settings page, matching web/app/src/pages/SettingsPage.tsx.
+// Preferences for Audio Quality, Visuals & Animated Artwork, Offline Storage, and Engine Status.
+
+import { Theme } from "theme.slint";
+import { Ui, SettingsData } from "state.slint";
+
+export component SettingsPage inherits Rectangle {
+    background: transparent;
+
+    Flickable {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        content-width: self.width;
+        content-height: content-layout.preferred-height + 140px;
+
+        content-layout := VerticalLayout {
+            padding-left: Theme.body-gutter;
+            padding-right: Theme.body-gutter;
+            padding-top: 28px;
+            padding-bottom: 40px;
+            spacing: 28px;
+
+            // Page Header
+            VerticalLayout {
+                spacing: 6px;
+
+                Text {
+                    text: "Settings";
+                    font-size: Theme.size-header;
+                    font-weight: 700;
+                    color: Theme.system-primary;
+                }
+
+                Text {
+                    text: "Configure audio engine, hardware GPU acceleration, motion visuals, and storage";
+                    font-size: Theme.size-subheadline;
+                    color: Theme.system-secondary;
+                }
+            }
+
+            // Category Tabs
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+
+                // Playback
+                Rectangle {
+                    width: 90px;
+                    height: 32px;
+                    border-radius: 16px;
+                    background: SettingsData.active-category == "playback" ? Theme.thick-material : transparent;
+                    border-width: 1px;
+                    border-color: SettingsData.active-category == "playback" ? Theme.divider : transparent;
+
+                    TouchArea {
+                        clicked => { SettingsData.set-category("playback"); }
+                    }
+
+                    Text {
+                        text: "Playback";
+                        font-size: Theme.size-callout;
+                        font-weight: SettingsData.active-category == "playback" ? 600 : 500;
+                        color: SettingsData.active-category == "playback" ? Theme.system-primary : Theme.system-secondary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Audio Quality
+                Rectangle {
+                    width: 110px;
+                    height: 32px;
+                    border-radius: 16px;
+                    background: SettingsData.active-category == "quality" ? Theme.thick-material : transparent;
+                    border-width: 1px;
+                    border-color: SettingsData.active-category == "quality" ? Theme.divider : transparent;
+
+                    TouchArea {
+                        clicked => { SettingsData.set-category("quality"); }
+                    }
+
+                    Text {
+                        text: "Audio Quality";
+                        font-size: Theme.size-callout;
+                        font-weight: SettingsData.active-category == "quality" ? 600 : 500;
+                        color: SettingsData.active-category == "quality" ? Theme.system-primary : Theme.system-secondary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Visuals
+                Rectangle {
+                    width: 80px;
+                    height: 32px;
+                    border-radius: 16px;
+                    background: SettingsData.active-category == "visuals" ? Theme.thick-material : transparent;
+                    border-width: 1px;
+                    border-color: SettingsData.active-category == "visuals" ? Theme.divider : transparent;
+
+                    TouchArea {
+                        clicked => { SettingsData.set-category("visuals"); }
+                    }
+
+                    Text {
+                        text: "Visuals";
+                        font-size: Theme.size-callout;
+                        font-weight: SettingsData.active-category == "visuals" ? 600 : 500;
+                        color: SettingsData.active-category == "visuals" ? Theme.system-primary : Theme.system-secondary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Storage
+                Rectangle {
+                    width: 80px;
+                    height: 32px;
+                    border-radius: 16px;
+                    background: SettingsData.active-category == "storage" ? Theme.thick-material : transparent;
+                    border-width: 1px;
+                    border-color: SettingsData.active-category == "storage" ? Theme.divider : transparent;
+
+                    TouchArea {
+                        clicked => { SettingsData.set-category("storage"); }
+                    }
+
+                    Text {
+                        text: "Storage";
+                        font-size: Theme.size-callout;
+                        font-weight: SettingsData.active-category == "storage" ? 600 : 500;
+                        color: SettingsData.active-category == "storage" ? Theme.system-primary : Theme.system-secondary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // About
+                Rectangle {
+                    width: 70px;
+                    height: 32px;
+                    border-radius: 16px;
+                    background: SettingsData.active-category == "about" ? Theme.thick-material : transparent;
+                    border-width: 1px;
+                    border-color: SettingsData.active-category == "about" ? Theme.divider : transparent;
+
+                    TouchArea {
+                        clicked => { SettingsData.set-category("about"); }
+                    }
+
+                    Text {
+                        text: "About";
+                        font-size: Theme.size-callout;
+                        font-weight: SettingsData.active-category == "about" ? 600 : 500;
+                        color: SettingsData.active-category == "about" ? Theme.system-primary : Theme.system-secondary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Section 1: Playback
+            if SettingsData.active-category == "playback": VerticalLayout {
+                spacing: 16px;
+
+                Rectangle {
+                    border-radius: 12px;
+                    background: Theme.thin-material;
+                    border-width: 1px;
+                    border-color: Theme.divider;
+
+                    HorizontalLayout {
+                        padding-left: 20px;
+                        padding-right: 20px;
+                        padding-top: 18px;
+                        padding-bottom: 18px;
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            width: 500px;
+
+                            Text {
+                                text: "System GPU Hardware Acceleration";
+                                font-size: Theme.size-body;
+                                font-weight: 600;
+                                color: Theme.system-primary;
+                            }
+
+                            Text {
+                                text: "Renders UI directly on your dedicated/integrated GPU via Direct3D 11 & Skia, bypassing WebGPU and software rasterization.";
+                                font-size: Theme.size-callout;
+                                color: Theme.system-secondary;
+                                wrap: word-wrap;
+                            }
+                        }
+
+                        Text {
+                            text: "Active (D3D11)";
+                            font-size: Theme.size-callout;
+                            font-weight: 600;
+                            color: #30d158;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                Rectangle {
+                    border-radius: 12px;
+                    background: Theme.thin-material;
+                    border-width: 1px;
+                    border-color: Theme.divider;
+
+                    HorizontalLayout {
+                        padding-left: 20px;
+                        padding-right: 20px;
+                        padding-top: 18px;
+                        padding-bottom: 18px;
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            width: 500px;
+
+                            Text {
+                                text: "Zero WebView2 Memory Footprint";
+                                font-size: Theme.size-body;
+                                font-weight: 600;
+                                color: Theme.system-primary;
+                            }
+
+                            Text {
+                                text: "Native application runs with 0% Chromium overhead, consuming less than ~45MB of RAM.";
+                                font-size: Theme.size-callout;
+                                color: Theme.system-secondary;
+                                wrap: word-wrap;
+                            }
+                        }
+
+                        Text {
+                            text: "Ultra-Low Memory";
+                            font-size: Theme.size-callout;
+                            font-weight: 600;
+                            color: #0a84ff;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // Section 2: Audio Quality
+            if SettingsData.active-category == "quality": VerticalLayout {
+                spacing: 16px;
+
+                Rectangle {
+                    border-radius: 12px;
+                    background: Theme.thin-material;
+                    border-width: 1px;
+                    border-color: Theme.divider;
+
+                    VerticalLayout {
+                        padding-left: 20px;
+                        padding-right: 20px;
+                        padding-top: 18px;
+                        padding-bottom: 18px;
+                        spacing: 14px;
+
+                        Text {
+                            text: "Streaming & Playback Audio Bitrate";
+                            font-size: Theme.size-body;
+                            font-weight: 600;
+                            color: Theme.system-primary;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 10px;
+
+                            // 128 kbps
+                            Rectangle {
+                                width: 140px;
+                                height: 38px;
+                                border-radius: 19px;
+                                background: SettingsData.audio-quality == "Normal (128 kbps)" ? Theme.accent-red : Theme.thick-material;
+                                border-width: 1px;
+                                border-color: Theme.divider;
+
+                                TouchArea {
+                                    clicked => { SettingsData.set-audio-quality("Normal (128 kbps)"); }
+                                }
+
+                                Text {
+                                    text: "128 kbps AAC";
+                                    font-size: Theme.size-callout;
+                                    font-weight: 600;
+                                    color: SettingsData.audio-quality == "Normal (128 kbps)" ? #ffffff : Theme.system-primary;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            // 256 kbps
+                            Rectangle {
+                                width: 150px;
+                                height: 38px;
+                                border-radius: 19px;
+                                background: SettingsData.audio-quality == "High (256 kbps AAC)" ? Theme.accent-red : Theme.thick-material;
+                                border-width: 1px;
+                                border-color: Theme.divider;
+
+                                TouchArea {
+                                    clicked => { SettingsData.set-audio-quality("High (256 kbps AAC)"); }
+                                }
+
+                                Text {
+                                    text: "256 kbps High";
+                                    font-size: Theme.size-callout;
+                                    font-weight: 600;
+                                    color: SettingsData.audio-quality == "High (256 kbps AAC)" ? #ffffff : Theme.system-primary;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            // Hi-Res FLAC
+                            Rectangle {
+                                width: 170px;
+                                height: 38px;
+                                border-radius: 19px;
+                                background: SettingsData.audio-quality == "Hi-Res FLAC (24-bit 96kHz)" ? Theme.accent-red : Theme.thick-material;
+                                border-width: 1px;
+                                border-color: Theme.divider;
+
+                                TouchArea {
+                                    clicked => { SettingsData.set-audio-quality("Hi-Res FLAC (24-bit 96kHz)"); }
+                                }
+
+                                Text {
+                                    text: "Hi-Res FLAC 24-bit";
+                                    font-size: Theme.size-callout;
+                                    font-weight: 600;
+                                    color: SettingsData.audio-quality == "Hi-Res FLAC (24-bit 96kHz)" ? #ffffff : Theme.system-primary;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Section 3: Visuals & Animated Artwork
+            if SettingsData.active-category == "visuals": VerticalLayout {
+                spacing: 16px;
+
+                Rectangle {
+                    border-radius: 12px;
+                    background: Theme.thin-material;
+                    border-width: 1px;
+                    border-color: Theme.divider;
+
+                    HorizontalLayout {
+                        padding-left: 20px;
+                        padding-right: 20px;
+                        padding-top: 18px;
+                        padding-bottom: 18px;
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            width: 500px;
+
+                            Text {
+                                text: "Animated Artwork & Motion Covers";
+                                font-size: Theme.size-body;
+                                font-weight: 600;
+                                color: Theme.system-primary;
+                            }
+
+                            Text {
+                                text: "Display Apple Music looping motion covers and Spotify Canvas animations where available.";
+                                font-size: Theme.size-callout;
+                                color: Theme.system-secondary;
+                                wrap: word-wrap;
+                            }
+                        }
+
+                        Rectangle {
+                            width: 50px;
+                            height: 28px;
+                            border-radius: 14px;
+                            background: SettingsData.animated-art ? Theme.accent-red : Theme.thick-material;
+
+                            TouchArea {
+                                clicked => { SettingsData.toggle-animated-art(); }
+                            }
+
+                            Rectangle {
+                                x: SettingsData.animated-art ? parent.width - self.width - 3px : 3px;
+                                y: 3px;
+                                width: 22px;
+                                height: 22px;
+                                border-radius: 11px;
+                                background: #ffffff;
+                                animate x { duration: 150ms; }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Section 4: Storage
+            if SettingsData.active-category == "storage": VerticalLayout {
+                spacing: 16px;
+
+                Rectangle {
+                    border-radius: 12px;
+                    background: Theme.thin-material;
+                    border-width: 1px;
+                    border-color: Theme.divider;
+
+                    VerticalLayout {
+                        padding-left: 20px;
+                        padding-right: 20px;
+                        padding-top: 18px;
+                        padding-bottom: 18px;
+                        spacing: 12px;
+
+                        Text {
+                            text: "Downloads Storage Folder";
+                            font-size: Theme.size-body;
+                            font-weight: 600;
+                            color: Theme.system-primary;
+                        }
+
+                        Text {
+                            text: SettingsData.download-folder != "" ? SettingsData.download-folder : "Default Music\\BitChord directory";
+                            font-size: Theme.size-callout;
+                            color: Theme.system-secondary;
+                        }
+
+                        Rectangle {
+                            width: 160px;
+                            height: 36px;
+                            border-radius: 18px;
+                            background: Theme.thick-material;
+                            border-width: 1px;
+                            border-color: Theme.divider;
+
+                            TouchArea {
+                                clicked => { SettingsData.open-download-folder(); }
+                            }
+
+                            Text {
+                                text: "Open in Explorer";
+                                font-size: Theme.size-callout;
+                                font-weight: 500;
+                                color: Theme.system-primary;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Section 5: About
+            if SettingsData.active-category == "about": VerticalLayout {
+                spacing: 16px;
+
+                Rectangle {
+                    border-radius: 12px;
+                    background: Theme.thin-material;
+                    border-width: 1px;
+                    border-color: Theme.divider;
+
+                    VerticalLayout {
+                        padding-left: 20px;
+                        padding-right: 20px;
+                        padding-top: 24px;
+                        padding-bottom: 24px;
+                        spacing: 12px;
+
+                        Image {
+                            width: 52px;
+                            height: 52px;
+                            source: @image-url("icons/logo-mark.svg");
+                        }
+
+                        Text {
+                            text: "BeatFlow Native";
+                            font-size: Theme.size-title-2;
+                            font-weight: 700;
+                            color: Theme.system-primary;
+                        }
+
+                        Text {
+                            text: "Version 0.1.0 • Standalone Rust & Slint Engine\nHardware Direct3D 11 / Skia GPU Accelerated\nBranch: feat/web-rebuilt";
+                            font-size: Theme.size-body;
+                            color: Theme.system-secondary;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

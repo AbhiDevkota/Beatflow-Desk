@@ -33,6 +33,7 @@ log = "0.4"
 reqwest = { version = "0.12", default-features = false, features = ["default-tls", "gzip", "json", "socks", "stream"] }
 symphonia = { version = "0.5", features = ["mp3", "aac", "flac", "vorbis", "wav", "isomp4", "mkv"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+roxmltree = "0.21"
 url = "2"
 wry = "0.54"
 

@@ -1,0 +1,67 @@
+// 3-bar animated soundwave equalizer, matching web/app/src/components/home/PlayingBars.tsx.
+// Overlaid on the artwork when a track is actively playing.
+
+import { Theme } from "theme.slint";
+import { Player } from "state.slint";
+
+export component PlayingBars inherits Rectangle {
+    in property <length> size: 22px;
+    in property <bool> playing: Player.status == 1;
+
+    width: root.size;
+    height: root.size;
+    border-radius: 6px;
+    background: #00000099;
+
+    function tri(x: float) -> float {
+        return 1.0 - Math.abs(2.0 * (x - Math.floor(x)) - 1.0);
+    }
+
+    // Oscillating heights when playing
+    property <float> phase: Player.beat-phase * 2.5;
+    property <float> h1: root.playing ? (0.35 + 0.55 * tri(phase)) : 0.70;
+    property <float> h2: root.playing ? (0.25 + 0.75 * tri(phase + 0.33)) : 1.00;
+    property <float> h3: root.playing ? (0.30 + 0.60 * tri(phase + 0.66)) : 0.45;
+
+    property <length> bar-w: 2.2px;
+    property <length> bar-gap: 2px;
+    property <length> max-h: 12px;
+
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - max-h) / 2;
+        width: 3 * bar-w + 2 * bar-gap;
+        height: max-h;
+        background: transparent;
+
+        // Bar 1
+        Rectangle {
+            x: 0;
+            y: parent.height - self.height;
+            width: bar-w;
+            height: max-h * h1;
+            border-radius: 1px;
+            background: #ffffff;
+        }
+
+        // Bar 2
+        Rectangle {
+            x: bar-w + bar-gap;
+            y: parent.height - self.height;
+            width: bar-w;
+            height: max-h * h2;
+            border-radius: 1px;
+            background: #ffffff;
+        }
+
+        // Bar 3
+        Rectangle {
+            x: 2 * (bar-w + bar-gap);
+            y: parent.height - self.height;
+            width: bar-w;
+            height: max-h * h3;
+            border-radius: 1px;
+            background: #ffffff;
+        }
+    }
+}

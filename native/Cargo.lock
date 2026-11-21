@@ -534,6 +534,7 @@ dependencies = [
  "raw-window-handle",
  "reqwest",
  "rodio",
+ "roxmltree",
  "rquickjs",
  "rusty-opus",
  "serde",

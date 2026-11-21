@@ -1,58 +1,216 @@
-// SidePanel drawer, ported from web/app/src/shell/SidePanel.tsx. Slides in from
-// the right when Ui.side-panel is "lyrics" or "up-next", 300px wide, with the
-// 300ms ease-out-panel curve. Content is mocked (Stage 5/6 of the blueprint).
-//
-// Components are declared before their use.
+// SidePanel drawer: 1:1 ported from web/app/src/shell/SidePanel.tsx and LyricsPanel.tsx.
+// Displays live Queue ("Up Next") with track jumping, and time-synced lyrics with active line highlighting.
 
 import { Theme } from "theme.slint";
-import { Player, Ui } from "state.slint";
+import { Player, Ui, QueueData, QueueTrack, LyricsData, LyricsLine } from "state.slint";
 import { AppIcon } from "icons.slint";
 
+component QueueRow inherits Rectangle {
+    in property <QueueTrack> track;
+    callback jump();
+
+    height: 52px;
+    border-radius: 8px;
+    background: root.track.active ? Theme.system-quaternary : (row-ta.has-hover ? Theme.system-quinary : transparent);
+    animate background { duration: 120ms; }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 12px;
+        spacing: 12px;
+        cross-axis-alignment: center;
+
+        // Small cover art
+        Rectangle {
+            width: 38px;
+            height: 38px;
+            border-radius: 4px;
+            clip: true;
+            background: Theme.joe;
+
+            if root.track.has-thumbnail: Image {
+                width: 100%;
+                height: 100%;
+                source: root.track.thumbnail;
+                image-fit: cover;
+            }
+
+            if !root.track.has-thumbnail: AppIcon {
+                x: 9px;
+                y: 9px;
+                size: 20px;
+                source: @image-url("icons/songs.svg");
+                tint: Theme.system-secondary;
+            }
+        }
+
+        // Title + Artist
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+
+            Text {
+                text: root.track.title;
+                font-size: 13px;
+                font-weight: root.track.active ? 600 : 400;
+                color: root.track.active ? Theme.key-color : Theme.system-primary;
+                overflow: elide;
+            }
+
+            Text {
+                text: root.track.artist;
+                font-size: 12px;
+                color: Theme.system-secondary;
+                overflow: elide;
+            }
+        }
+
+        // Active equalizer indicator or duration
+        if root.track.active: AppIcon {
+            size: 16px;
+            source: @image-url("icons/play.svg");
+            tint: Theme.key-color;
+        }
+
+        if !root.track.active && root.track.duration != "": Text {
+            text: root.track.duration;
+            font-size: 12px;
+            color: Theme.system-secondary;
+        }
+    }
+
+    row-ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.jump(); }
+    }
+}
+
 export component SidePanel inherits Rectangle {
-    // 300px drawer, slides in from the right.
     width: Theme.side-panel-width;
     height: 100%;
     background: Theme.glass-material-bg;
-    border-radius: 0px;
     clip: true;
 
-    // The drawer is positioned by app-window; here we just render content.
-    // Sliding is handled by app-window's x binding.
-
-    // Header with close button.
+    // Header bar with title and close button
     Rectangle {
         x: 0;
         y: 0;
         width: parent.width;
-        height: 48px;
+        height: 52px;
         background: transparent;
 
-        Text {
-            x: 16px;
-            y: 14px;
-            text: Ui.side-panel == "lyrics" ? "Lyrics" : "Up Next";
-            font-size: 16px;
-            font-weight: 700;
-            color: Theme.system-primary;
+        HorizontalLayout {
+            padding-left: 20px;
+            padding-right: 16px;
+            cross-axis-alignment: center;
+
+            Text {
+                text: Ui.side-panel == "lyrics" ? "Lyrics" : "Playing Next";
+                font-size: 18px;
+                font-weight: 700;
+                color: Theme.system-primary;
+                horizontal-stretch: 1;
+            }
+
+            // Close (X) button
+            Rectangle {
+                width: 28px;
+                height: 28px;
+                border-radius: 14px;
+                background: close-ta.has-hover ? Theme.system-quinary : transparent;
+                animate background { duration: 100ms; }
+
+                AppIcon {
+                    x: 6px;
+                    y: 6px;
+                    size: 16px;
+                    source: @image-url("icons/x.svg");
+                    tint: Theme.system-secondary;
+                }
+
+                close-ta := TouchArea {
+                    mouse-cursor: MouseCursor.pointer;
+                    clicked => { Ui.side-panel = ""; }
+                }
+            }
+        }
+
+        Rectangle {
+            y: parent.height - 1px;
+            width: 100%;
+            height: 1px;
+            background: Theme.system-quinary;
         }
     }
 
-    // Content area (mocked).
-    Rectangle {
-        x: 16px;
-        y: 48px;
-        width: parent.width - 32px;
-        height: parent.height - 48px;
-        background: transparent;
+    // Queue / Up Next view
+    if Ui.side-panel == "up-next": Flickable {
+        x: 0;
+        y: 52px;
+        width: parent.width;
+        height: parent.height - 52px - Theme.player-pill-height;
+        content-width: parent.width;
+        content-height: Math.max(parent.height - 52px, QueueData.items.length * 54px + 30px);
 
-        Text {
-            x: 0;
-            y: 16px;
-            text: Ui.side-panel == "lyrics"
-                ? "Lyrics will appear here."
-                : "Queue will appear here.";
-            font-size: Theme.size-body;
-            color: Theme.system-secondary;
+        VerticalLayout {
+            padding: 12px;
+            spacing: 2px;
+
+            if QueueData.items.length == 0: Rectangle {
+                height: 120px;
+                Text {
+                    text: "Queue is empty.";
+                    font-size: 14px;
+                    color: Theme.system-secondary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            for track in QueueData.items: QueueRow {
+                track: track;
+                jump => { QueueData.jump-to(track.index); }
+            }
+        }
+    }
+
+    // Apple Music Style Synced Lyrics view
+    if Ui.side-panel == "lyrics": Flickable {
+        x: 0;
+        y: 52px;
+        width: parent.width;
+        height: parent.height - 52px - Theme.player-pill-height;
+        content-width: parent.width;
+        content-height: Math.max(parent.height - 52px, LyricsData.lines.length * 48px + 100px);
+
+        VerticalLayout {
+            padding-left: 24px;
+            padding-right: 24px;
+            padding-top: 32px;
+            padding-bottom: 80px;
+            spacing: 16px;
+
+            if !LyricsData.has-lyrics: Rectangle {
+                height: 160px;
+                Text {
+                    text: "No lyrics available for this song.";
+                    font-size: 15px;
+                    color: Theme.system-secondary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            for line in LyricsData.lines: Text {
+                text: line.text;
+                font-size: line.active ? 22px : 17px;
+                font-weight: line.active ? 700 : 500;
+                color: line.active ? #ffffff : rgba(255, 255, 255, 0.4);
+                wrap: word-wrap;
+                animate font-size { duration: 200ms; }
+                animate color { duration: 200ms; }
+            }
         }
     }
 }

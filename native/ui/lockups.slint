@@ -10,7 +10,7 @@
 
 import { Theme } from "theme.slint";
 import { AppIcon } from "icons.slint";
-import { ShelfItem } from "state.slint";
+import { ShelfItem, Ui } from "state.slint";
 
 // Lockups.tsx's PlayPlatter: the circular play button on the hover scrim.
 // The caller positions it (bottom-2.5 left-2.5 of the artwork).
@@ -127,7 +127,17 @@ export component SquareLockup inherits Rectangle {
 
     art-ta := TouchArea {
         mouse-cursor: MouseCursor.pointer;
-        clicked => { root.play(); }
+        clicked => {
+            if (root.item.target-type == "album") {
+                Ui.open-collection(root.item.target-id, true);
+            } else if (root.item.target-type == "playlist") {
+                Ui.open-collection(root.item.target-id, false);
+            } else if (root.item.target-type == "artist") {
+                Ui.open-artist(root.item.target-id);
+            } else {
+                root.play();
+            }
+        }
     }
 }
 
@@ -186,7 +196,17 @@ export component CircleLockup inherits Rectangle {
 
     art-ta := TouchArea {
         mouse-cursor: MouseCursor.pointer;
-        clicked => { root.play(); }
+        clicked => {
+            if (root.item.target-type == "album") {
+                Ui.open-collection(root.item.target-id, true);
+            } else if (root.item.target-type == "playlist") {
+                Ui.open-collection(root.item.target-id, false);
+            } else if (root.item.target-type == "artist") {
+                Ui.open-artist(root.item.target-id);
+            } else {
+                root.play();
+            }
+        }
     }
 }
 
@@ -247,7 +267,17 @@ export component VideoLockup inherits Rectangle {
 
     art-ta := TouchArea {
         mouse-cursor: MouseCursor.pointer;
-        clicked => { root.play(); }
+        clicked => {
+            if (root.item.target-type == "album") {
+                Ui.open-collection(root.item.target-id, true);
+            } else if (root.item.target-type == "playlist") {
+                Ui.open-collection(root.item.target-id, false);
+            } else if (root.item.target-type == "artist") {
+                Ui.open-artist(root.item.target-id);
+            } else {
+                root.play();
+            }
+        }
     }
 }
 

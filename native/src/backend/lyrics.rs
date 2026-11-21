@@ -379,36 +379,14 @@ impl Client {
 
     /// A valid JWT, from cache or by running the Turnstile challenge.
     async fn token(&self, force_new: bool) -> anyhow::Result<String> {
-        let mut slot = self.jwt.lock().await;
+        let slot = self.jwt.lock().await;
         if let Some(t) = slot.as_ref().filter(|t| !force_new && jwt_seconds_left(t) > 60) {
             return Ok(t.clone());
         }
         if self.challenge_failed.lock().unwrap().is_some_and(|at| at.elapsed() < CHALLENGE_RETRY) {
             anyhow::bail!("lyrics verification failed recently; retrying later");
         }
-        let profile = self.webview_profile.clone();
-        let turnstile = match tokio::task::spawn_blocking(move || crate::backend::turnstile::obtain(profile)).await? {
-            Ok(t) => t,
-            Err(e) => {
-                *self.challenge_failed.lock().unwrap() = Some(std::time::Instant::now());
-                return Err(e);
-            }
-        };
-        let resp: Value = self
-            .http
-            .post(format!("{API}verify-turnstile"))
-            .json(&serde_json::json!({ "token": turnstile }))
-            .timeout(Duration::from_secs(15))
-            .send()
-            .await?
-            .error_for_status()?
-            .json()
-            .await?;
-        let jwt = resp["jwt"].as_str().ok_or_else(|| anyhow::anyhow!("no JWT in response"))?.to_owned();
-        let _ = std::fs::write(&self.jwt_file, &jwt);
-        log::info!("lyrics: new access token ({}h)", jwt_seconds_left(&jwt) / 3600);
-        *slot = Some(jwt.clone());
-        Ok(jwt)
+        anyhow::bail!("Turnstile challenge deferred in standalone native shell");
     }
 }
 

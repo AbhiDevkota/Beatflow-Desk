@@ -1,12 +1,17 @@
 // The page viewport only: switches on Ui.active-route. The pages themselves
-// live beside it (home-page.slint, search-page.slint, new-page.slint), each
-// ported 1:1 from its web counterpart.
+// live beside it (home-page.slint, search-page.slint, new-page.slint,
+// collection-page.slint, artist-page.slint), each ported 1:1 from its web counterpart.
 
 import { Theme } from "theme.slint";
 import { Ui } from "state.slint";
 import { HomePage } from "home-page.slint";
 import { SearchPage } from "search-page.slint";
 import { NewPage } from "new-page.slint";
+import { CollectionPage } from "collection-page.slint";
+import { ArtistPage } from "artist-page.slint";
+import { LibraryPage } from "library-page.slint";
+import { DownloadsPage } from "downloads-page.slint";
+import { SettingsPage } from "settings-page.slint";
 
 // Generic placeholder page for not-yet-migrated routes.
 export component PlaceholderPage inherits Rectangle {
@@ -36,9 +41,12 @@ export component PageViewport inherits Rectangle {
     if Ui.active-route == "Home": HomePage { width: 100%; height: 100%; }
     if Ui.active-route == "Search": SearchPage { width: 100%; height: 100%; }
     if Ui.active-route == "New": NewPage { width: 100%; height: 100%; }
-    if Ui.active-route == "Library": PlaceholderPage { width: 100%; height: 100%; label: "Library"; }
-    if Ui.active-route == "Downloads": PlaceholderPage { width: 100%; height: 100%; label: "Downloads"; }
+    if Ui.active-route == "Album": CollectionPage { width: 100%; height: 100%; }
+    if Ui.active-route == "Playlist": CollectionPage { width: 100%; height: 100%; }
+    if Ui.active-route == "Artist": ArtistPage { width: 100%; height: 100%; }
+    if Ui.active-route == "Library": LibraryPage { width: 100%; height: 100%; }
+    if Ui.active-route == "Downloads": DownloadsPage { width: 100%; height: 100%; }
+    if Ui.active-route == "Settings": SettingsPage { width: 100%; height: 100%; }
+    if Ui.active-route == "All Playlists": LibraryPage { width: 100%; height: 100%; }
     if Ui.active-route == "Listen Together": PlaceholderPage { width: 100%; height: 100%; label: "Listen Together"; }
-    if Ui.active-route == "Settings": PlaceholderPage { width: 100%; height: 100%; label: "Settings"; }
-    if Ui.active-route == "All Playlists": PlaceholderPage { width: 100%; height: 100%; label: "All Playlists"; }
 }

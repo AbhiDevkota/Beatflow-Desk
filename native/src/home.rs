@@ -36,6 +36,8 @@ fn seed_defaults(app: &App) {
         thumbnail: Default::default(),
         has_thumbnail: false,
         round: false,
+        target_id: video_id.into(),
+        target_type: "song".into(),
     };
 
     let default_top_picks = vec![
@@ -71,6 +73,7 @@ fn seed_defaults(app: &App) {
 
     let home = app_window.global::<crate::HomeData>();
     home.set_top_picks(data::model(default_top_picks.clone()));
+    home.set_has_recently_played(false);
     home.set_recently_played(crate::Shelf {
         title: "Recently Played".into(),
         strapline: "".into(),
@@ -79,14 +82,15 @@ fn seed_defaults(app: &App) {
         columns: ModelRc::default(),
     });
     home.set_moods(data::model(default_moods));
+    home.set_has_lead_shelf(true);
+    home.set_lead_shelf(crate::Shelf {
+        title: "New Releases".into(),
+        strapline: "".into(),
+        layout: 0,
+        cards: data::model(default_new_releases.clone()),
+        columns: ModelRc::default(),
+    });
     home.set_shelves(data::model(vec![
-        crate::Shelf {
-            title: "New Releases".into(),
-            strapline: "".into(),
-            layout: 0,
-            cards: data::model(default_new_releases.clone()),
-            columns: ModelRc::default(),
-        },
         crate::Shelf {
             title: "Trending".into(),
             strapline: "".into(),
@@ -120,42 +124,52 @@ fn seed_defaults(app: &App) {
                 let Some(app_window) = weak.upgrade() else { return };
                 let home = app_window.global::<crate::HomeData>();
                 patch_home_art(home.get_top_picks(), &vid, &raw);
+                if home.get_has_lead_shelf() {
+                    let mut lead = home.get_lead_shelf();
+                    if patch_shelf_item_model(&mut lead, &vid, &raw) {
+                        home.set_lead_shelf(lead);
+                    }
+                }
                 let shelves = home.get_shelves();
                 for i in 0..shelves.row_count() {
-                    let Some(shelf) = shelves.row_data(i) else { continue };
-                    let mut changed = false;
-                    for c in 0..shelf.cards.row_count() {
-                        if let Some(mut item) = shelf.cards.row_data(c) {
-                            if item.video_id == vid {
-                                item.thumbnail = raw.to_slint();
-                                item.has_thumbnail = true;
-                                shelf.cards.set_row_data(c, item);
-                                changed = true;
-                            }
-                        }
-                    }
-                    for c in 0..shelf.columns.row_count() {
-                        if let Some(col) = shelf.columns.row_data(c) {
-                            for r in 0..col.items.row_count() {
-                                if let Some(mut item) = col.items.row_data(r) {
-                                    if item.video_id == vid {
-                                        item.thumbnail = raw.to_slint();
-                                        item.has_thumbnail = true;
-                                        col.items.set_row_data(r, item);
-                                        changed = true;
-                                    }
-                                }
-                            }
-                            shelf.columns.set_row_data(c, col);
-                        }
-                    }
-                    if changed {
+                    let Some(mut shelf) = shelves.row_data(i) else { continue };
+                    if patch_shelf_item_model(&mut shelf, &vid, &raw) {
                         shelves.set_row_data(i, shelf);
                     }
                 }
             });
         }
     });
+}
+
+fn patch_shelf_item_model(shelf: &mut crate::Shelf, vid: &str, raw: &crate::images::RawImage) -> bool {
+    let mut changed = false;
+    for c in 0..shelf.cards.row_count() {
+        if let Some(mut item) = shelf.cards.row_data(c) {
+            if item.video_id == vid {
+                item.thumbnail = raw.to_slint();
+                item.has_thumbnail = true;
+                shelf.cards.set_row_data(c, item);
+                changed = true;
+            }
+        }
+    }
+    for c in 0..shelf.columns.row_count() {
+        if let Some(col) = shelf.columns.row_data(c) {
+            for r in 0..col.items.row_count() {
+                if let Some(mut item) = col.items.row_data(r) {
+                    if item.video_id == vid {
+                        item.thumbnail = raw.to_slint();
+                        item.has_thumbnail = true;
+                        col.items.set_row_data(r, item);
+                        changed = true;
+                    }
+                }
+            }
+            shelf.columns.set_row_data(c, col);
+        }
+    }
+    changed
 }
 
 /// Patch a flat cards model (top picks, new releases) by video id.
@@ -283,9 +297,9 @@ fn fetch_recently_played(app: &App) {
         let weak = app.weak.clone();
         let _ = slint::invoke_from_event_loop(move || {
             let Some(app_window) = weak.upgrade() else { return };
-            app_window
-                .global::<crate::HomeData>()
-                .set_recently_played(shelf.into_shelf());
+            let home = app_window.global::<crate::HomeData>();
+            home.set_recently_played(shelf.into_shelf());
+            home.set_has_recently_played(true);
         });
     });
 }
@@ -364,9 +378,11 @@ fn fetch_live(app: &App) {
                 home.set_top_picks(data::model(data::into_items(top_picks)));
             }
             if !shelves.is_empty() {
-                home.set_shelves(data::model(
-                    shelves.into_iter().map(data::PendingShelf::into_shelf).collect::<Vec<_>>(),
-                ));
+                let mut ui_shelves: Vec<_> = shelves.into_iter().map(data::PendingShelf::into_shelf).collect();
+                let lead = ui_shelves.remove(0);
+                home.set_lead_shelf(lead);
+                home.set_has_lead_shelf(true);
+                home.set_shelves(data::model(ui_shelves));
             }
         });
     });

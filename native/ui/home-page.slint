@@ -7,26 +7,22 @@
 //   3. Recently Played (music/ShelfView.tsx's TrackShelf): the 4-row track
 //      columns
 //   4. The lead feed shelf, Find Your Mood (home/FindYourMoodShelf.tsx),
-//      then the remaining shelves — Android's slice order
+//      then the remaining shelves — Android's exact slice order
 //
 // Every shelf section keeps the web's pt-9 (36px); the page clears the
-// floating player pill with pb-[calc(56+20+40)px] = 116px
-// (Theme.page-bottom-padding).
+// floating player pill with pb-[calc(56+20+40)px] = 116px (Theme.page-bottom-padding).
 
 import { Theme } from "theme.slint";
 import { AppIcon } from "icons.slint";
-import { ShelfItem, MoodItem, HomeData } from "state.slint";
+import { ShelfItem, MoodItem, HomeData, Player } from "state.slint";
 import { PageHeader } from "page-header.slint";
 import { ShelfTitle, ShelfArrow, ShelfView } from "shelf-view.slint";
+import { PlayingBars } from "playing-bars.slint";
 
 // ---------------------------------------------------------------------------
 // Top Picks for You (home/TopPicksShelf.tsx)
 // ---------------------------------------------------------------------------
 
-// One pick: `w-[240px] aspect-[3/4] rounded-xl` — art under a to-top gradient
-// (from-black/85 via-black/35), the logo badge top-right (size-6, bg-black/30)
-// and the caption bottom (p-4): text-lg bold white title over white/80
-// subtitle. The web's eyebrow (the pick's kind label) isn't in ShelfItem.
 component TopPicksCard inherits Rectangle {
     in property <ShelfItem> pick;
     callback play();
@@ -73,7 +69,7 @@ component TopPicksCard inherits Rectangle {
             y: (parent.height - self.height) / 2;
             size: 14px;
             source: @image-url("icons/logo-mark.svg");
-            tint: #ffffffe6;             // text-white/90
+            tint: #ffffffe6;
         }
     }
 
@@ -83,14 +79,14 @@ component TopPicksCard inherits Rectangle {
         y: parent.height - self.preferred-height;
         width: parent.width;
         padding: 16px;
-        spacing: 2px;                    // mt-0.5
+        spacing: 2px;
 
         Text {
             text: root.pick.title;
-            font-size: 18px;             // text-lg (≥sm)
+            font-size: 18px;
             font-weight: 700;
             color: #ffffff;
-            height: 45px;                // line-clamp-2
+            height: 45px;
             wrap: word-wrap;
             overflow: elide;
             vertical-alignment: top;
@@ -98,8 +94,8 @@ component TopPicksCard inherits Rectangle {
 
         if root.pick.subtitle != "": Text {
             text: root.pick.subtitle;
-            font-size: 12px;             // text-xs
-            color: #ffffffcc;            // text-white/80
+            font-size: 12px;
+            color: #ffffffcc;
             overflow: elide;
             wrap: no-wrap;
         }
@@ -111,8 +107,6 @@ component TopPicksCard inherits Rectangle {
     }
 }
 
-// The shelf: the type-title-2-emphasized header, then the scrolling row with
-// the glass arrows (gap-4, px-(--body-gutter)).
 component TopPicksShelf inherits Rectangle {
     height: 22px + 14px + 320px;
     background: transparent;
@@ -124,11 +118,10 @@ component TopPicksShelf inherits Rectangle {
     }
 
     Rectangle {
-        y: 36px;                         // 22px header + mb-3.5
+        y: 36px;
         width: 100%;
         height: 320px;
 
-        // Hover proxy for the arrows (see ShelfView).
         shelf-ta := TouchArea {
             width: 100%;
             height: 100%;
@@ -137,9 +130,11 @@ component TopPicksShelf inherits Rectangle {
         scroller := Flickable {
             width: 100%;
             height: 100%;
+            content-height: self.height;
+            content-width: HomeData.top-picks.length * (240px + 16px) + 2 * Theme.body-gutter;
 
             HorizontalLayout {
-                spacing: 16px;           // gap-4
+                spacing: 16px;
                 padding-left: Theme.body-gutter;
                 padding-right: Theme.body-gutter;
 
@@ -151,11 +146,15 @@ component TopPicksShelf inherits Rectangle {
         }
 
         if scroller.content-width > scroller.width: ShelfArrow {
+            y: (parent.height - self.height) / 2;
+            x: 6px;
             forward: false;
             shelf-hover: shelf-ta.has-hover;
             clicked => { scroller.content-x += scroller.width - 2 * Theme.body-gutter; }
         }
         if scroller.content-width > scroller.width: ShelfArrow {
+            y: (parent.height - self.height) / 2;
+            x: parent.width - self.width - 6px;
             forward: true;
             shelf-hover: shelf-ta.has-hover;
             clicked => { scroller.content-x -= scroller.width - 2 * Theme.body-gutter; }
@@ -167,35 +166,72 @@ component TopPicksShelf inherits Rectangle {
 // Find Your Mood (home/FindYourMoodShelf.tsx)
 // ---------------------------------------------------------------------------
 
-// MoodCanvas's emblem at its static frame: a stroke drawing sized to 70% of
-// the tile (the square MoodCanvas frame), stroke-width ≈ 2.2 × (119/110).
-// The web animates these per mood period; the native port draws the base
-// emblem. Paths stay within the M/L/C/Z subset Slint parses.
+// 1:1 Animated Mood Emblems ported directly from Android Skia / MoodCanvas.tsx
 component MoodEmblem inherits Rectangle {
     in property <MoodItem> mood;
 
     property <color> stroke: root.mood.stroke;
+    property <float> phase: Player.beat-phase;
 
-    // ENERGY: the bolt polygon (drawBolt).
-    if root.mood.key == "Energy": Path {
+    // ENERGY: electric lightning bolt with animated ghost flashes
+    if root.mood.key == "Energy": Rectangle {
         width: 100%;
         height: 100%;
-        viewbox-width: 100;
-        viewbox-height: 100;
-        commands: "M 48.6 12.3 L 88.6 12.3 L 53.2 50.9 L 87.7 50.9 L 11.4 89.5 L 40.9 61.4 L 10.5 61.4 Z";
-        stroke: root.stroke;
-        stroke-width: 2.4px;
+
+        property <float> p: Math.mod(root.phase * 2.0, 1.0);
+        property <float> flash: (p >= 0.25 && p <= 0.55) ? Math.sin((p - 0.25) / 0.30 * 180deg) : 0.0;
+
+        // Ghost flash echo 1 (shifted right)
+        if flash > 0.05: Path {
+            x: 6px * flash;
+            width: 100%;
+            height: 100%;
+            viewbox-width: 100;
+            viewbox-height: 100;
+            commands: "M 48.6 12.3 L 88.6 12.3 L 53.2 50.9 L 87.7 50.9 L 11.4 89.5 L 40.9 61.4 L 10.5 61.4 Z";
+            stroke: root.stroke;
+            stroke-width: 2.4px;
+            opacity: 0.55 * flash;
+        }
+
+        // Ghost flash echo 2 (shifted left)
+        if flash > 0.05: Path {
+            x: -5px * flash;
+            width: 100%;
+            height: 100%;
+            viewbox-width: 100;
+            viewbox-height: 100;
+            commands: "M 48.6 12.3 L 88.6 12.3 L 53.2 50.9 L 87.7 50.9 L 11.4 89.5 L 40.9 61.4 L 10.5 61.4 Z";
+            stroke: root.stroke;
+            stroke-width: 2.4px;
+            opacity: 0.35 * flash;
+        }
+
+        // Main sharp lightning bolt
+        Path {
+            width: 100%;
+            height: 100%;
+            viewbox-width: 100;
+            viewbox-height: 100;
+            commands: "M 48.6 12.3 L 88.6 12.3 L 53.2 50.9 L 87.7 50.9 L 11.4 89.5 L 40.9 61.4 L 10.5 61.4 Z";
+            stroke: root.stroke;
+            stroke-width: 2.4px;
+        }
     }
 
-    // RELAX: the three swaying stones (the ellipse case at cy 17/38/66),
-    // drawn as bordered pills sized to the web's stone widths/heights.
+    // RELAX: three calming balanced stones smoothly swaying with sinusoidal waves
     if root.mood.key == "Relax": Rectangle {
         width: 100%;
         height: 100%;
         background: transparent;
 
+        property <float> s1: Math.sin(root.phase * 360deg);
+        property <float> s2: Math.sin((root.phase + 0.22) * 360deg);
+        property <float> s3: Math.sin((root.phase + 0.44) * 360deg);
+
+        // Top stone
         Rectangle {
-            x: (parent.width - parent.width * 0.44) / 2;
+            x: (parent.width - parent.width * 0.44) / 2 + 4px * s1;
             y: parent.height * 0.17 - parent.height * 0.09;
             width: parent.width * 0.44;
             height: parent.height * 0.18;
@@ -203,8 +239,10 @@ component MoodEmblem inherits Rectangle {
             border-width: 2.2px;
             border-color: root.stroke;
         }
+
+        // Middle stone
         Rectangle {
-            x: (parent.width - parent.width * 0.68) / 2;
+            x: (parent.width - parent.width * 0.68) / 2 + 5px * s2;
             y: parent.height * 0.38 - parent.height * 0.14;
             width: parent.width * 0.68;
             height: parent.height * 0.28;
@@ -212,8 +250,10 @@ component MoodEmblem inherits Rectangle {
             border-width: 2.2px;
             border-color: root.stroke;
         }
+
+        // Bottom stone
         Rectangle {
-            x: (parent.width - parent.width * 0.84) / 2;
+            x: (parent.width - parent.width * 0.84) / 2 + 3px * s3;
             y: parent.height * 0.66 - parent.height * 0.18;
             width: parent.width * 0.84;
             height: parent.height * 0.36;
@@ -223,109 +263,172 @@ component MoodEmblem inherits Rectangle {
         }
     }
 
-    // FEELING BLUE: the spiral (SPIRAL_STEPS), as a cubic chain.
-    if root.mood.key == "Feeling Blue": Path {
+    // FEELING BLUE: undulating contemplative spiral
+    if root.mood.key == "Feeling Blue": Rectangle {
         width: 100%;
         height: 100%;
-        viewbox-width: 100;
-        viewbox-height: 100;
-        commands: "M 50 10 C 84 10 92 36 92 52 C 92 78 74 92 52 92 C 32 92 14 78 14 58 C 14 42 26 32 40 32 C 52 32 60 42 60 52 C 60 60 54 66 47 66 C 42 66 38 62 38 57";
-        stroke: root.stroke;
-        stroke-width: 2.4px;
+
+        property <float> pulse: 0.92 + 0.08 * (0.5 + 0.5 * Math.sin(root.phase * 360deg));
+        property <float> sway: Math.sin(root.phase * 360deg);
+
+        Path {
+            x: (parent.width - self.width) / 2 + 2px * sway;
+            y: (parent.height - self.height) / 2;
+            width: parent.width * pulse;
+            height: parent.height * pulse;
+            viewbox-width: 100;
+            viewbox-height: 100;
+            commands: "M 50 10 C 84 10 92 36 92 52 C 92 78 74 92 52 92 C 32 92 14 78 14 58 C 14 42 26 32 40 32 C 52 32 60 42 60 52 C 60 60 54 66 47 66 C 42 66 38 62 38 57";
+            stroke: root.stroke;
+            stroke-width: 2.4px;
+        }
     }
 
-    // FEEL GOOD: the four-point star (drawStar).
-    if root.mood.key == "Feel Good": Path {
+    // FEEL GOOD: breathing, swaying 4-point star
+    if root.mood.key == "Feel Good": Rectangle {
         width: 100%;
         height: 100%;
-        viewbox-width: 100;
-        viewbox-height: 100;
-        commands: "M 50 6 L 61 39 L 94 50 L 61 61 L 50 94 L 39 61 L 6 50 L 39 39 Z";
-        stroke: root.stroke;
-        stroke-width: 2.4px;
+
+        property <float> pulse: 0.88 + 0.14 * (0.5 + 0.5 * Math.sin(root.phase * 360deg));
+        property <float> sway: Math.sin(root.phase * 360deg);
+
+        Path {
+            x: (parent.width - self.width) / 2 + 4px * sway;
+            y: (parent.height - self.height) / 2;
+            width: parent.width * pulse;
+            height: parent.height * pulse;
+            viewbox-width: 100;
+            viewbox-height: 100;
+            commands: "M 50 6 L 61 39 L 94 50 L 61 61 L 50 94 L 39 61 L 6 50 L 39 39 Z";
+            stroke: root.stroke;
+            stroke-width: 2.4px;
+        }
     }
 
-    // FOCUS: the expanding rings (the arc case, share 0..1) as bordered
-    // circles, fading out toward the edge like the web's edgeFade.
+    // FOCUS: hypnotic concentric rings continuously expanding and fading
     if root.mood.key == "Focus": Rectangle {
         width: 100%;
         height: 100%;
         background: transparent;
 
+        property <float> d1: Math.mod(root.phase, 1.0);
+        property <float> d2: Math.mod(root.phase + 0.333, 1.0);
+        property <float> d3: Math.mod(root.phase + 0.666, 1.0);
+
+        // Ripple Ring 1
         Rectangle {
-            width: parent.width;
-            height: parent.height;
-            border-radius: self.width / 2;
-            border-width: 2.2px;
-            border-color: root.stroke.transparentize(0.75);
-        }
-        Rectangle {
-            x: parent.width * 0.17;
-            y: parent.height * 0.17;
-            width: parent.width * 0.66;
-            height: parent.height * 0.66;
-            border-radius: self.width / 2;
-            border-width: 2.2px;
-            border-color: root.stroke.transparentize(0.4);
-        }
-        Rectangle {
-            x: parent.width * 0.33;
-            y: parent.height * 0.33;
-            width: parent.width * 0.34;
-            height: parent.height * 0.34;
-            border-radius: self.width / 2;
+            property <length> sz: parent.width * (0.22 + 0.78 * d1);
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: sz;
+            height: sz;
+            border-radius: sz / 2;
             border-width: 2.2px;
             border-color: root.stroke;
+            opacity: Math.max(0.0, 1.0 - d1);
+        }
+
+        // Ripple Ring 2
+        Rectangle {
+            property <length> sz: parent.width * (0.22 + 0.78 * d2);
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: sz;
+            height: sz;
+            border-radius: sz / 2;
+            border-width: 2.2px;
+            border-color: root.stroke;
+            opacity: Math.max(0.0, 1.0 - d2);
+        }
+
+        // Ripple Ring 3
+        Rectangle {
+            property <length> sz: parent.width * (0.22 + 0.78 * d3);
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: sz;
+            height: sz;
+            border-radius: sz / 2;
+            border-width: 2.2px;
+            border-color: root.stroke;
+            opacity: Math.max(0.0, 1.0 - d3);
         }
     }
 
-    // HEARTBREAK: the dashed heart (drawHeart), solid here.
-    if root.mood.key == "Heartbreak": Path {
+    // HEARTBREAK: fractured heart pulsing with melancholy breathing
+    if root.mood.key == "Heartbreak": Rectangle {
         width: 100%;
         height: 100%;
-        viewbox-width: 100;
-        viewbox-height: 100;
-        commands: "M 50 92 C 30 76 10 56 10 36 C 10 18 22 8 34 8 C 43 8 49 14 50 22 C 51 14 57 8 66 8 C 78 8 90 18 90 36 C 90 56 70 76 50 92 Z";
-        stroke: root.stroke;
-        stroke-width: 2.4px;
+
+        property <float> pulse: 0.93 + 0.07 * (0.5 + 0.5 * Math.sin(root.phase * 360deg));
+
+        Path {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: parent.width * pulse;
+            height: parent.height * pulse;
+            viewbox-width: 100;
+            viewbox-height: 100;
+            commands: "M 50 22 C 49 14 43 8 34 8 C 22 8 10 18 10 36 C 10 56 30 76 50 92 C 70 76 90 56 90 36 C 90 18 78 8 66 8 C 57 8 51 14 50 22 L 48 38 L 54 48 L 47 62 L 53 74 L 50 92";
+            stroke: root.stroke;
+            stroke-width: 2.4px;
+        }
     }
 
-    // LOVE: the beating heart (drawHeart).
-    if root.mood.key == "Love": Path {
+    // LOVE: realistic double-bump beating heart (lub-dub rhythm)
+    if root.mood.key == "Love": Rectangle {
         width: 100%;
         height: 100%;
-        viewbox-width: 100;
-        viewbox-height: 100;
-        commands: "M 50 92 C 30 76 10 56 10 36 C 10 18 22 8 34 8 C 43 8 49 14 50 22 C 51 14 57 8 66 8 C 78 8 90 18 90 36 C 90 56 70 76 50 92 Z";
-        stroke: root.stroke;
-        stroke-width: 2.4px;
+
+        property <float> p: Math.mod(root.phase * 1.6, 1.0);
+        property <float> b1: (p >= 0.10 && p <= 0.28) ? Math.sin((p - 0.10) / 0.18 * 180deg) : 0.0;
+        property <float> b2: (p >= 0.30 && p <= 0.46) ? Math.sin((p - 0.30) / 0.16 * 180deg) * 0.75 : 0.0;
+        property <float> beat: 1.0 + 0.14 * (b1 + b2);
+
+        Path {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: parent.width * beat;
+            height: parent.height * beat;
+            viewbox-width: 100;
+            viewbox-height: 100;
+            commands: "M 50 92 C 30 76 10 56 10 36 C 10 18 22 8 34 8 C 43 8 49 14 50 22 C 51 14 57 8 66 8 C 78 8 90 18 90 36 C 90 56 70 76 50 92 Z";
+            stroke: root.stroke;
+            stroke-width: 2.4px;
+        }
     }
 }
 
-// One mood: the square tile (rounded-xl) with the emblem and logo badge
-// (top-2.5 right-2.5, size-5.5, bg-black/25), the title below (mt-2, text-sm
-// semibold, text-key-accent on hover).
+// One mood tile with smooth hover scale animation and BeatFlow status badge
 component MoodTile inherits Rectangle {
     in property <MoodItem> mood;
     callback play();
 
-    width: 170px;                        // sm:w-[170px]
-    height: 170px + 8px + 20px;          // tile + mt-2 + title line
+    width: 170px;
+    height: 170px + 8px + 20px;
     background: transparent;
 
+    property <bool> hover: mood-ta.has-hover;
+
+    // Tile container with smooth hover zoom
     Rectangle {
-        width: parent.width;
-        height: parent.width;            // aspect-square
+        width: root.hover ? 170px : 166px;
+        height: root.hover ? 170px : 166px;
+        x: (parent.width - self.width) / 2;
+        y: root.hover ? 0px : 2px;
         border-radius: Theme.radius-card;
         clip: true;
         background: root.mood.background;
+        animate width, height, y { duration: 200ms; easing: ease-out; }
+        drop-shadow-blur: root.hover ? 10px : 2px;
+        drop-shadow-color: root.hover ? #00000045 : #00000015;
 
-        // The emblem (MoodCanvas's square frame: 70% of the tile, centred).
+        // Animated emblem
         Rectangle {
             x: (parent.width - self.width) / 2;
-            y: (parent.height - self.width) / 2;
-            width: parent.width * 0.7;
-            height: parent.width * 0.7;
+            y: (parent.height - self.height) / 2;
+            width: parent.width * 0.70;
+            height: parent.height * 0.70;
 
             MoodEmblem {
                 width: 100%;
@@ -334,7 +437,7 @@ component MoodTile inherits Rectangle {
             }
         }
 
-        // BeatFlow badge (top-2.5 right-2.5, size-5.5, bg-black/25)
+        // Top-right BeatFlow badge: shows PlayingBars when active, or logo mark
         Rectangle {
             x: parent.width - 32px;
             y: 10px;
@@ -343,12 +446,18 @@ component MoodTile inherits Rectangle {
             border-radius: 11px;
             background: #00000040;
 
-            AppIcon {
+            if Player.status == 1 && Player.artist == root.mood.title: PlayingBars {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                size: 16px;
+            }
+
+            if Player.status != 1 || Player.artist != root.mood.title: AppIcon {
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
                 size: 12px;
                 source: @image-url("icons/logo-mark.svg");
-                tint: #fffffff2;         // text-white/95
+                tint: #fffffff2;
             }
         }
 
@@ -358,23 +467,23 @@ component MoodTile inherits Rectangle {
         }
     }
 
+    // Title below tile
     Text {
-        y: parent.width + 8px;           // mt-2
+        y: 170px + 8px;
         width: parent.width;
         text: root.mood.title;
-        font-size: 14px;                 // text-sm
+        font-size: 14px;
         font-weight: 600;
-        color: mood-ta.has-hover ? Theme.key-color : Theme.system-primary;
+        color: root.hover ? Theme.key-color : Theme.system-primary;
         overflow: elide;
         wrap: no-wrap;
+        animate color { duration: 150ms; }
     }
 }
 
-// The mood shelf: the header with the "Show all" link (text-sm font-medium,
-// text-key-accent — the web token resolves to the key colour), then the
-// scrolling row (gap-3.5).
+// Find Your Mood shelf: matching web app's horizontal scroller with glass pill arrows and NO "Show more" button
 component MoodShelf inherits Rectangle {
-    height: 22px + 14px + 198px;
+    height: 22px + 14px + 208px;
     background: transparent;
 
     ShelfTitle {
@@ -383,42 +492,10 @@ component MoodShelf inherits Rectangle {
         title: "Find Your Mood";
     }
 
-    // "Show all" link, right of the title row (navigates /moods on the web;
-    // the moods page isn't in the native shell yet).
     Rectangle {
-        y: 1px;
-        x: parent.width - Theme.body-gutter - 74px;
-        width: 74px;
-        height: 22px;
-        background: transparent;
-
-        HorizontalLayout {
-            spacing: 2px;                // gap-0.5
-
-            Text {
-                text: "Show all";
-                font-size: 14px;         // text-sm
-                font-weight: 500;
-                color: Theme.key-color;
-                vertical-alignment: center;
-            }
-
-            AppIcon {
-                source: @image-url("icons/forward.svg");
-                size: 16px;
-                tint: Theme.key-color;
-            }
-        }
-
-        TouchArea {
-            mouse-cursor: MouseCursor.pointer;
-        }
-    }
-
-    Rectangle {
-        y: 36px;                         // 22px header + mb-3.5
+        y: 36px;
         width: 100%;
-        height: 198px;
+        height: 208px;
 
         shelf-ta := TouchArea {
             width: 100%;
@@ -428,9 +505,11 @@ component MoodShelf inherits Rectangle {
         scroller := Flickable {
             width: 100%;
             height: 100%;
+            content-height: self.height;
+            content-width: HomeData.moods.length * 184px + 2 * Theme.body-gutter;
 
             HorizontalLayout {
-                spacing: 14px;           // gap-3.5
+                spacing: 14px;
                 padding-left: Theme.body-gutter;
                 padding-right: Theme.body-gutter;
 
@@ -442,11 +521,15 @@ component MoodShelf inherits Rectangle {
         }
 
         if scroller.content-width > scroller.width: ShelfArrow {
+            y: (parent.height - self.height) / 2;
+            x: 6px;
             forward: false;
             shelf-hover: shelf-ta.has-hover;
             clicked => { scroller.content-x += scroller.width - 2 * Theme.body-gutter; }
         }
         if scroller.content-width > scroller.width: ShelfArrow {
+            y: (parent.height - self.height) / 2;
+            x: parent.width - self.width - 6px;
             forward: true;
             shelf-hover: shelf-ta.has-hover;
             clicked => { scroller.content-x -= scroller.width - 2 * Theme.body-gutter; }
@@ -464,43 +547,39 @@ export component HomePage inherits Rectangle {
     Flickable {
         width: 100%;
         height: 100%;
+        content-height: content.preferred-height;
+        content-width: self.width;
 
         content := VerticalLayout {
-            // Every shelf section's pt-9.
             spacing: 36px;
-            // AppShell's pb that clears the floating pill (56 + 20 + 40).
             padding-bottom: Theme.page-bottom-padding;
 
+            // Page Header
             PageHeader { title: "Home"; }
 
             // 1. Top Picks for You
             if HomeData.top-picks.length > 0: TopPicksShelf { }
 
-            // 2. Recently Played (TrackShelf, the 4-row track columns)
-            if HomeData.recently-played.columns.length > 0: ShelfView {
+            // 2. Recently Played (TrackShelf)
+            if HomeData.has-recently-played: ShelfView {
                 shelf: HomeData.recently-played;
                 play-shelf(shelf, item) => { HomeData.play-shelf(shelf, item); }
             }
 
-            // 3. The lead shelf, then Find Your Mood, then the rest —
-            //    HomePage's shelves.slice(0, 1) / slice(1) order.
-            for sh[i] in HomeData.shelves: Rectangle {
-                if i == 0: ShelfView {
-                    shelf: sh;
-                    play-shelf(shelf, item) => { HomeData.play-shelf(shelf, item); }
-                }
+            // 3. Lead dynamic shelf (Android / Web index 0)
+            if HomeData.has-lead-shelf: ShelfView {
+                shelf: HomeData.lead-shelf;
+                play-shelf(shelf, item) => { HomeData.play-shelf(shelf, item); }
             }
 
+            // 4. Find Your Mood
             MoodShelf { }
 
-            for sh[i] in HomeData.shelves: Rectangle {
-                if i > 0: ShelfView {
-                    shelf: sh;
-                    play-shelf(shelf, item) => { HomeData.play-shelf(shelf, item); }
-                }
+            // 5. Remaining dynamic shelves (indexes 1..N)
+            for sh in HomeData.shelves: ShelfView {
+                shelf: sh;
+                play-shelf(shelf, item) => { HomeData.play-shelf(shelf, item); }
             }
         }
-        content-height: content.preferred-height;
-        content-width: self.width;
     }
 }

@@ -48,6 +48,58 @@ pub fn play_track(app: &App, video_id: String, title: String, artist: String, at
         }
     }
 
+    // Synchronize queue to UI
+    sync_queue_to_ui(&app);
+
+    // Reset lyrics and fetch in background
+    *app.state.active_lyrics.lock().unwrap() = None;
+    if let Some(app_window) = app.weak.upgrade() {
+        let l_global = app_window.global::<crate::LyricsData>();
+        l_global.set_has_lyrics(false);
+        l_global.set_lines(slint::ModelRc::default());
+    }
+
+    let lyrics_app = app.clone();
+    let lyrics_vid = video_id.clone();
+    let lyrics_title = title.clone();
+    let lyrics_artist = artist.clone();
+    let lyrics_gen = generation;
+    let gen_atomic_lyrics = app.state.generation.clone();
+
+    app.rt.spawn(async move {
+        let client = crate::backend::lyrics::Client::new(lyrics_app.http.clone(), std::env::temp_dir().as_path());
+        let q = crate::backend::lyrics::Query {
+            video_id: &lyrics_vid,
+            song: &lyrics_title,
+            artist: &lyrics_artist,
+            album: None,
+            duration: None,
+        };
+        if let Ok(lset) = client.fetch(&q).await {
+            if gen_atomic_lyrics.load(Ordering::SeqCst) != lyrics_gen {
+                return;
+            }
+            if let Some(src) = lset.sources.first() {
+                let lines = src.lines.clone();
+                *lyrics_app.state.active_lyrics.lock().unwrap() = Some(lines.clone());
+                let ui_lines: Vec<crate::LyricsLine> = lines.iter().enumerate().map(|(i, l)| {
+                    crate::LyricsLine {
+                        text: l.text.clone().into(),
+                        active: i == 0,
+                    }
+                }).collect();
+                let weak = lyrics_app.weak.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    let Some(app_window) = weak.upgrade() else { return };
+                    let l_global = app_window.global::<crate::LyricsData>();
+                    l_global.set_lines(crate::data::model(ui_lines));
+                    l_global.set_has_lyrics(true);
+                    l_global.set_current_line(0);
+                });
+            }
+        }
+    });
+
     // Spawn thumbnail loader for now-playing LCD
     let thumb_app = app.clone();
     let vid_img = video_id.clone();
@@ -257,7 +309,50 @@ pub fn play_prev(app: &App) {
 /// it when it's in there, so next/previous continue from its slot.
 pub fn play_one_off(app: &App, track: TrackItem) {
     app.state.jump_to(&track.video_id);
+    sync_queue_to_ui(app);
     play_track(app, track.video_id, track.title, track.artist, Duration::ZERO);
+}
+
+/// Replace the queue with a list of tracks and play the chosen index.
+pub fn play_queue_from(app: &App, tracks: Vec<TrackItem>, index: usize) {
+    if tracks.is_empty() {
+        return;
+    }
+    let safe_idx = index.min(tracks.len() - 1);
+    let chosen = tracks[safe_idx].clone();
+    app.state.set_queue(tracks);
+    *app.state.queue_index.lock().unwrap() = safe_idx;
+    sync_queue_to_ui(app);
+    play_track(app, chosen.video_id, chosen.title, chosen.artist, Duration::ZERO);
+}
+
+fn format_duration(secs: Option<u32>) -> String {
+    match secs {
+        Some(s) if s > 0 => format!("{}:{:02}", s / 60, s % 60),
+        _ => String::new(),
+    }
+}
+
+/// Synchronize the active queue and current index with Slint's QueueData global.
+pub fn sync_queue_to_ui(app: &App) {
+    let queue = app.state.queue.lock().unwrap().clone();
+    let curr_idx = *app.state.queue_index.lock().unwrap();
+    let Some(app_window) = app.weak.upgrade() else { return };
+    let q_global = app_window.global::<crate::QueueData>();
+    let items: Vec<crate::QueueTrack> = queue.into_iter().enumerate().map(|(i, t)| {
+        crate::QueueTrack {
+            index: i as i32,
+            title: t.title.into(),
+            artist: t.artist.into(),
+            duration: format_duration(Some(t.duration as u32)).into(),
+            video_id: t.video_id.into(),
+            thumbnail: Default::default(),
+            has_thumbnail: false,
+            active: i == curr_idx,
+        }
+    }).collect();
+    q_global.set_items(crate::data::model(items));
+    q_global.set_current_index(curr_idx as i32);
 }
 
 /// The timers kept alive for the app's lifetime; drop them and they stop.
@@ -415,6 +510,25 @@ fn wire_transport(app: &App) {
             app.audio.send(AudioCmd::Volume(player.get_volume()));
         });
     }
+
+    // Queue jumping / clearing
+    {
+        let q_app = app.clone();
+        let q_global = app_window.global::<crate::QueueData>();
+        q_global.on_jump_to(move |idx| {
+            let queue = q_app.state.queue.lock().unwrap().clone();
+            if (idx as usize) < queue.len() {
+                play_queue_from(&q_app, queue, idx as usize);
+            }
+        });
+        let c_app = app.clone();
+        let q_global2 = app_window.global::<crate::QueueData>();
+        q_global2.on_clear(move || {
+            c_app.state.queue.lock().unwrap().clear();
+            *c_app.state.queue_index.lock().unwrap() = 0;
+            sync_queue_to_ui(&c_app);
+        });
+    }
 }
 
 fn wire_window_controls(app: &App) {
@@ -448,6 +562,27 @@ fn wire_window_controls(app: &App) {
             let _ = slint::quit_event_loop();
         });
     }
+
+    let ui = app_window.global::<crate::Ui>();
+    {
+        let weak = app.weak.clone();
+        ui.on_toggle_fullscreen(move || {
+            if let Some(app) = weak.upgrade() {
+                let ui = app.global::<crate::Ui>();
+                let cur = ui.get_fullscreen_player();
+                ui.set_fullscreen_player(!cur);
+            }
+        });
+    }
+
+    {
+        let weak = app.weak.clone();
+        ui.on_close_fullscreen(move || {
+            if let Some(app) = weak.upgrade() {
+                app.global::<crate::Ui>().set_fullscreen_player(false);
+            }
+        });
+    }
 }
 
 /// Lock-free smooth extrapolation from AudioStatus, 10×/s.
@@ -465,20 +600,35 @@ fn wire_progress_timer(app: &App) -> Timer {
         player.set_elapsed(secs as f32);
         let dur = player.get_duration();
         player.set_progress(if dur > 0.0 { (secs as f32) / dur } else { 0.0 });
+
+        // Update synced lyrics active line
+        if let Some(ref lines) = *app.state.active_lyrics.lock().unwrap() {
+            let pos_ms = (secs * 1000.0) as i32;
+            if let Some(curr_idx) = lines.iter().rposition(|l| l.start <= pos_ms) {
+                let l_global = app_window.global::<crate::LyricsData>();
+                if l_global.get_current_line() != curr_idx as i32 {
+                    l_global.set_current_line(curr_idx as i32);
+                    let ui_lines: Vec<crate::LyricsLine> = lines.iter().enumerate().map(|(i, l)| {
+                        crate::LyricsLine {
+                            text: l.text.clone().into(),
+                            active: i == curr_idx,
+                        }
+                    }).collect();
+                    l_global.set_lines(crate::data::model(ui_lines));
+                }
+            }
+        }
     });
     timer
 }
 
-/// BeatLoader phase driver (~60fps over the 1.9s full cycle).
+/// Global animation phase driver (~60fps over the 1.9s full cycle).
 fn wire_beat_timer(app: &App) -> Timer {
     let timer = Timer::default();
     let app = app.clone();
     timer.start(TimerMode::Repeated, Duration::from_millis(16), move || {
         let Some(app_window) = app.weak.upgrade() else { return };
         let player = app_window.global::<crate::Player>();
-        if player.get_status() < 2 {
-            return;
-        }
         player.set_beat_phase((player.get_beat_phase() + 0.016 / 1.9) % 1.0);
     });
     timer

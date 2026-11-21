@@ -4,7 +4,7 @@
 // hover with the elapsed/remaining times fading in over it.
 
 import { Theme } from "theme.slint";
-import { Player } from "state.slint";
+import { Player, Ui } from "state.slint";
 import { AppIcon } from "icons.slint";
 
 export component Lcd inherits Rectangle {
@@ -93,8 +93,8 @@ export component Lcd inherits Rectangle {
             }
 
             art-ta := TouchArea {
-                // full-screen expansion arrives with Stage 5; no-op for now
-                clicked => { }
+                mouse-cursor: MouseCursor.pointer;
+                clicked => { Ui.toggle-fullscreen(); }
             }
         }
 

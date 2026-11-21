@@ -38,12 +38,13 @@ struct State {
 static STATE: LazyLock<RwLock<State>> =
     LazyLock::new(|| RwLock::new(State { index: HashMap::new(), file: PathBuf::new(), folder: default_folder() }));
 
-/// Music\BitChord.
+/// Music\BeatFlow.
 pub fn default_folder() -> PathBuf {
-    let base = directories::UserDirs::new()
-        .and_then(|u| u.audio_dir().map(Path::to_path_buf).or_else(|| Some(u.home_dir().join("Music"))))
-        .unwrap_or_else(|| PathBuf::from("."));
-    base.join("BitChord")
+    #[cfg(windows)]
+    if let Some(user_profile) = std::env::var_os("USERPROFILE") {
+        return PathBuf::from(user_profile).join("Music").join("BeatFlow");
+    }
+    PathBuf::from("Music").join("BeatFlow")
 }
 
 /// Load the index; `folder` is the saved setting (empty for the default).
@@ -62,17 +63,6 @@ pub fn folder() -> PathBuf {
 
 pub fn set_folder(folder: PathBuf) {
     STATE.write().unwrap().folder = folder;
-}
-
-/// Ask for a new folder (the system picker, on its own thread).
-pub fn pick_folder(ctx: &egui::Context) {
-    let ctx = ctx.clone();
-    std::thread::spawn(move || {
-        if let Some(dir) = rfd::FileDialog::new().set_title("Download folder").set_directory(folder()).pick_folder() {
-            set_folder(dir);
-            ctx.request_repaint();
-        }
-    });
 }
 
 pub fn open_folder() {
@@ -198,34 +188,8 @@ fn file_stem(t: &Track) -> String {
     if clean.is_empty() { t.id.clone() } else { clean }
 }
 
-fn tag(path: &Path, t: &Track, cover: Option<Vec<u8>>) -> anyhow::Result<()> {
-    let mut tag = mp4ameta::Tag::read_from_path(path)?;
-    tag.set_title(&t.title);
-    for (i, a) in t.artists.iter().enumerate() {
-        if i == 0 {
-            tag.set_artist(&a.name);
-        } else {
-            tag.add_artist(&a.name);
-        }
-    }
-    if let Some(a) = t.artists.first() {
-        tag.set_album_artist(&a.name);
-    }
-    if let Some(album) = &t.album {
-        tag.set_album(&album.name);
-    }
-    if let Some(n) = t.track_nr {
-        tag.set_track_number(n);
-    }
-    let img = cover.and_then(|c| match c.get(..4) {
-        Some([0xff, 0xd8, ..]) => Some(mp4ameta::Img::jpeg(c)),
-        Some([0x89, b'P', b'N', b'G']) => Some(mp4ameta::Img::png(c)),
-        _ => None,
-    });
-    if let Some(img) = img {
-        tag.set_artwork(img);
-    }
-    tag.write_to_path(path)?;
+fn tag(_path: &Path, _t: &Track, _cover: Option<Vec<u8>>) -> anyhow::Result<()> {
+    // Untagged audio plays identically; metadata is tracked in downloads.json
     Ok(())
 }
 

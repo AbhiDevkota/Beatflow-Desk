@@ -1,0 +1,366 @@
+// Downloads view, matching web/app/src/pages/DownloadsPage.tsx.
+// Displays downloaded songs stored locally on disk for zero-latency offline playback.
+
+import { Theme } from "theme.slint";
+import { Ui, Player, DownloadsData, CollectionTrack } from "state.slint";
+import { PlayingBars } from "playing-bars.slint";
+
+export component DownloadsPage inherits Rectangle {
+    background: transparent;
+
+    Flickable {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        content-width: self.width;
+        content-height: content-layout.preferred-height + 140px;
+
+        content-layout := VerticalLayout {
+            padding-left: Theme.body-gutter;
+            padding-right: Theme.body-gutter;
+            padding-top: 28px;
+            padding-bottom: 40px;
+            spacing: 24px;
+
+            // Page Header
+            VerticalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: "Downloads";
+                    font-size: Theme.size-header;
+                    font-weight: 700;
+                    color: Theme.system-primary;
+                }
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: start;
+
+                    Text {
+                        text: DownloadsData.count > 0 
+                            ? DownloadsData.count + " songs • " + DownloadsData.total-size + " • Available offline"
+                            : "Offline music stored on your system GPU & disk";
+                        font-size: Theme.size-subheadline;
+                        color: Theme.system-secondary;
+                    }
+                }
+            }
+
+            // Action Buttons Row
+            if DownloadsData.count > 0: HorizontalLayout {
+                spacing: 12px;
+                alignment: start;
+
+                // Play Button
+                Rectangle {
+                    width: 110px;
+                    height: 38px;
+                    border-radius: 19px;
+                    background: Theme.accent-red;
+
+                    TouchArea {
+                        clicked => { DownloadsData.play-all(); }
+                    }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+
+                        Image {
+                            y: (parent.height - self.height) / 2;
+                            width: 14px;
+                            height: 14px;
+                            source: @image-url("icons/play.svg");
+                            colorize: #ffffff;
+                        }
+
+                        Text {
+                            text: "Play";
+                            font-size: Theme.size-body;
+                            font-weight: 600;
+                            color: #ffffff;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Shuffle Button
+                Rectangle {
+                    width: 120px;
+                    height: 38px;
+                    border-radius: 19px;
+                    background: Theme.thin-material;
+                    border-width: 1px;
+                    border-color: Theme.divider;
+
+                    TouchArea {
+                        clicked => { DownloadsData.shuffle-all(); }
+                    }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+
+                        Image {
+                            y: (parent.height - self.height) / 2;
+                            width: 14px;
+                            height: 14px;
+                            source: @image-url("icons/shuffle.svg");
+                            colorize: Theme.system-primary;
+                        }
+
+                        Text {
+                            text: "Shuffle";
+                            font-size: Theme.size-body;
+                            font-weight: 600;
+                            color: Theme.system-primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Open in Explorer Button
+                Rectangle {
+                    width: 150px;
+                    height: 38px;
+                    border-radius: 19px;
+                    background: Theme.thin-material;
+                    border-width: 1px;
+                    border-color: Theme.divider;
+
+                    TouchArea {
+                        clicked => { DownloadsData.open-folder(); }
+                    }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+
+                        Image {
+                            y: (parent.height - self.height) / 2;
+                            width: 15px;
+                            height: 15px;
+                            source: @image-url("icons/downloads.svg");
+                            colorize: Theme.system-secondary;
+                        }
+
+                        Text {
+                            text: "Open Folder";
+                            font-size: Theme.size-body;
+                            font-weight: 500;
+                            color: Theme.system-primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // Empty state when no downloads
+            if DownloadsData.count == 0 && !DownloadsData.loading: Rectangle {
+                height: 280px;
+                border-radius: 16px;
+                background: Theme.thin-material;
+                border-width: 1px;
+                border-color: Theme.divider;
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 12px;
+
+                    Image {
+                        x: (parent.width - self.width) / 2;
+                        width: 44px;
+                        height: 44px;
+                        source: @image-url("icons/downloads.svg");
+                        colorize: Theme.system-tertiary;
+                    }
+
+                    Text {
+                        text: "No Downloaded Songs Yet";
+                        font-size: Theme.size-title-3;
+                        font-weight: 600;
+                        color: Theme.system-primary;
+                        horizontal-alignment: center;
+                    }
+
+                    Text {
+                        text: "Songs you download for offline listening will appear here.\nThey play directly from your system disk without internet.";
+                        font-size: Theme.size-body;
+                        color: Theme.system-secondary;
+                        horizontal-alignment: center;
+                    }
+
+                    Rectangle {
+                        x: (parent.width - self.width) / 2;
+                        width: 140px;
+                        height: 36px;
+                        border-radius: 18px;
+                        background: Theme.thick-material;
+                        border-width: 1px;
+                        border-color: Theme.divider;
+
+                        TouchArea {
+                            clicked => { DownloadsData.open-folder(); }
+                        }
+
+                        Text {
+                            text: "Open Storage Folder";
+                            font-size: Theme.size-callout;
+                            font-weight: 500;
+                            color: Theme.system-primary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // Track List
+            if DownloadsData.count > 0: VerticalLayout {
+                spacing: 2px;
+
+                // Table Header
+                Rectangle {
+                    height: 32px;
+
+                    Rectangle {
+                        y: parent.height - 1px;
+                        width: 100%;
+                        height: 1px;
+                        background: Theme.divider;
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 12px;
+
+                        Text {
+                            width: 32px;
+                            text: "#";
+                            font-size: Theme.size-caption;
+                            font-weight: 600;
+                            color: Theme.system-tertiary;
+                            vertical-alignment: center;
+                        }
+
+                        Text {
+                            horizontal-stretch: 1;
+                            text: "TITLE";
+                            font-size: Theme.size-caption;
+                            font-weight: 600;
+                            color: Theme.system-tertiary;
+                            vertical-alignment: center;
+                        }
+
+                        Text {
+                            width: 220px;
+                            text: "ARTIST";
+                            font-size: Theme.size-caption;
+                            font-weight: 600;
+                            color: Theme.system-tertiary;
+                            vertical-alignment: center;
+                        }
+
+                        Text {
+                            width: 70px;
+                            text: "TIME";
+                            font-size: Theme.size-caption;
+                            font-weight: 600;
+                            color: Theme.system-tertiary;
+                            horizontal-alignment: right;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Table Rows
+                for track[idx] in DownloadsData.tracks: Rectangle {
+                    height: 52px;
+                    border-radius: 8px;
+                    background: row-ta.has-hover ? Theme.thin-material : transparent;
+
+                    row-ta := TouchArea {
+                        clicked => { DownloadsData.play-track(idx); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 12px;
+                        alignment: center;
+
+                        // Track number or playing equalizer
+                        Rectangle {
+                            width: 32px;
+                            height: 32px;
+
+                            if Player.title == track.title && Player.status == 1: PlayingBars {
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                                size: 20px;
+                            }
+
+                            if Player.title != track.title || Player.status != 1: Text {
+                                text: track.index > 0 ? track.index : (idx + 1);
+                                font-size: Theme.size-body;
+                                color: Theme.system-secondary;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        // Thumbnail
+                        Rectangle {
+                            width: 40px;
+                            height: 40px;
+                            border-radius: 6px;
+                            clip: true;
+                            background: Theme.thick-material;
+
+                            if track.has-thumbnail: Image {
+                                width: 100%;
+                                height: 100%;
+                                image-fit: cover;
+                                source: track.thumbnail;
+                            }
+                        }
+
+                        // Title
+                        Text {
+                            horizontal-stretch: 1;
+                            text: track.title;
+                            font-size: Theme.size-body;
+                            font-weight: 600;
+                            color: Player.title == track.title ? Theme.accent-red : Theme.system-primary;
+                            overflow: elide;
+                            vertical-alignment: center;
+                        }
+
+                        // Artist
+                        Text {
+                            width: 220px;
+                            text: track.artist;
+                            font-size: Theme.size-body;
+                            color: Theme.system-secondary;
+                            overflow: elide;
+                            vertical-alignment: center;
+                        }
+
+                        // Duration
+                        Text {
+                            width: 70px;
+                            text: track.duration;
+                            font-size: Theme.size-callout;
+                            color: Theme.system-tertiary;
+                            horizontal-alignment: right;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

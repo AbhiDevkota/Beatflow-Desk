@@ -19,14 +19,19 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app;
+mod artist;
 mod backend;
 mod chrome;
+mod collection;
 mod data;
+mod downloads;
 mod explore;
 mod home;
 mod images;
+mod library;
 mod playback;
 mod search;
+mod settings;
 mod state;
 
 use std::sync::Arc;
@@ -84,6 +89,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     search::wire(&app);
     home::wire(&app);
     explore::wire(&app);
+    collection::wire(&app);
+    artist::wire(&app);
+    library::wire(&app);
+    downloads::wire(&app);
+    settings::wire(&app);
 
     app_window.show()?;
 

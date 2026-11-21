@@ -39,6 +39,8 @@ pub struct PendingItem {
     pub title: String,
     pub subtitle: String,
     pub video_id: String,
+    pub target_id: String,
+    pub target_type: String,
     pub thumbnail: Option<Arc<images::RawImage>>,
     pub round: bool,
 }
@@ -53,6 +55,8 @@ impl PendingItem {
             thumbnail: self.thumbnail.as_ref().map(|r| r.to_slint()).unwrap_or_default(),
             has_thumbnail: self.thumbnail.is_some(),
             round: self.round,
+            target_id: self.target_id.into(),
+            target_type: self.target_type.into(),
         }
     }
 }
@@ -130,6 +134,8 @@ pub async fn track_to_item(http: &reqwest::Client, cache: &images::ImageCache, t
         title: t.title.clone(),
         subtitle: t.artist_line(),
         video_id: t.id.clone(),
+        target_id: t.id.clone(),
+        target_type: "song".to_string(),
         thumbnail: images::get_or_fetch_image(http, cache, &url).await,
         round: false,
     }
@@ -138,15 +144,19 @@ pub async fn track_to_item(http: &reqwest::Client, cache: &images::ImageCache, t
 /// Fetch a card's thumbnail and shape the shelf item (albums, playlists,
 /// artists — the last keeps `round` for the circular lockup).
 pub async fn card_to_item(http: &reqwest::Client, cache: &images::ImageCache, c: &Card) -> PendingItem {
-    let video_id = match &c.target {
-        Target::Song(t) => t.id.clone(),
-        _ => String::new(),
+    let (video_id, target_id, target_type) = match &c.target {
+        Target::Song(t) => (t.id.clone(), t.id.clone(), "song".to_string()),
+        Target::Album(id) => (String::new(), id.clone(), "album".to_string()),
+        Target::Playlist(id) => (String::new(), id.clone(), "playlist".to_string()),
+        Target::Artist(id) => (String::new(), id.clone(), "artist".to_string()),
     };
     let url = thumb_url(&c.thumbs, &video_id);
     PendingItem {
         title: c.title.clone(),
         subtitle: c.subtitle.clone(),
         video_id,
+        target_id,
+        target_type,
         thumbnail: images::get_or_fetch_image(http, cache, &url).await,
         round: c.round,
     }

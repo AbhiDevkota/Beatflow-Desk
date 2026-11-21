@@ -1,0 +1,483 @@
+// Library view, matching web/app/src/pages/LibraryPage.tsx.
+// Displays saved playlists, albums, and songs from the user's library.
+
+import { Theme } from "theme.slint";
+import { Ui, Player, LibraryData, ShelfItem, CollectionTrack } from "state.slint";
+import { SquareLockup } from "lockups.slint";
+import { PlayingBars } from "playing-bars.slint";
+
+export component LibraryPage inherits Rectangle {
+    background: transparent;
+
+    Flickable {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        content-width: self.width;
+        content-height: content-layout.preferred-height + 140px;
+
+        content-layout := VerticalLayout {
+            padding-left: Theme.body-gutter;
+            padding-right: Theme.body-gutter;
+            padding-top: 28px;
+            padding-bottom: 40px;
+            spacing: 24px;
+
+            // Page Header
+            HorizontalLayout {
+                alignment: space-between;
+
+                VerticalLayout {
+                    spacing: 6px;
+
+                    Text {
+                        text: "Library";
+                        font-size: Theme.size-header;
+                        font-weight: 700;
+                        color: Theme.system-primary;
+                    }
+
+                    Text {
+                        text: "Your saved music, albums, and playlists";
+                        font-size: Theme.size-subheadline;
+                        color: Theme.system-secondary;
+                    }
+                }
+
+                // Action Buttons
+                HorizontalLayout {
+                    spacing: 10px;
+                    alignment: end;
+
+                    Rectangle {
+                        width: 100px;
+                        height: 36px;
+                        border-radius: 18px;
+                        background: Theme.accent-red;
+
+                        TouchArea {
+                            clicked => { LibraryData.play-all(); }
+                        }
+
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: 6px;
+
+                            Image {
+                                y: (parent.height - self.height) / 2;
+                                width: 14px;
+                                height: 14px;
+                                source: @image-url("icons/play.svg");
+                                colorize: #ffffff;
+                            }
+
+                            Text {
+                                text: "Play";
+                                font-size: Theme.size-callout;
+                                font-weight: 600;
+                                color: #ffffff;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 110px;
+                        height: 36px;
+                        border-radius: 18px;
+                        background: Theme.thin-material;
+                        border-width: 1px;
+                        border-color: Theme.divider;
+
+                        TouchArea {
+                            clicked => { LibraryData.shuffle-all(); }
+                        }
+
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: 6px;
+
+                            Image {
+                                y: (parent.height - self.height) / 2;
+                                width: 14px;
+                                height: 14px;
+                                source: @image-url("icons/shuffle.svg");
+                                colorize: Theme.system-primary;
+                            }
+
+                            Text {
+                                text: "Shuffle";
+                                font-size: Theme.size-callout;
+                                font-weight: 600;
+                                color: Theme.system-primary;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Tab Selector Pills (Playlists / Albums / Songs)
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+
+                // Playlists Tab
+                Rectangle {
+                    width: 90px;
+                    height: 32px;
+                    border-radius: 16px;
+                    background: LibraryData.active-tab == "Playlists" ? Theme.thick-material : transparent;
+                    border-width: 1px;
+                    border-color: LibraryData.active-tab == "Playlists" ? Theme.divider : transparent;
+
+                    TouchArea {
+                        clicked => { LibraryData.set-tab("Playlists"); }
+                    }
+
+                    Text {
+                        text: "Playlists";
+                        font-size: Theme.size-callout;
+                        font-weight: LibraryData.active-tab == "Playlists" ? 600 : 500;
+                        color: LibraryData.active-tab == "Playlists" ? Theme.system-primary : Theme.system-secondary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Albums Tab
+                Rectangle {
+                    width: 80px;
+                    height: 32px;
+                    border-radius: 16px;
+                    background: LibraryData.active-tab == "Albums" ? Theme.thick-material : transparent;
+                    border-width: 1px;
+                    border-color: LibraryData.active-tab == "Albums" ? Theme.divider : transparent;
+
+                    TouchArea {
+                        clicked => { LibraryData.set-tab("Albums"); }
+                    }
+
+                    Text {
+                        text: "Albums";
+                        font-size: Theme.size-callout;
+                        font-weight: LibraryData.active-tab == "Albums" ? 600 : 500;
+                        color: LibraryData.active-tab == "Albums" ? Theme.system-primary : Theme.system-secondary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Songs Tab
+                Rectangle {
+                    width: 75px;
+                    height: 32px;
+                    border-radius: 16px;
+                    background: LibraryData.active-tab == "Songs" ? Theme.thick-material : transparent;
+                    border-width: 1px;
+                    border-color: LibraryData.active-tab == "Songs" ? Theme.divider : transparent;
+
+                    TouchArea {
+                        clicked => { LibraryData.set-tab("Songs"); }
+                    }
+
+                    Text {
+                        text: "Songs";
+                        font-size: Theme.size-callout;
+                        font-weight: LibraryData.active-tab == "Songs" ? 600 : 500;
+                        color: LibraryData.active-tab == "Songs" ? Theme.system-primary : Theme.system-secondary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Tab 1: Playlists View
+            if LibraryData.active-tab == "Playlists": VerticalLayout {
+                spacing: 16px;
+
+                if LibraryData.playlists.length == 0 && !LibraryData.loading: Rectangle {
+                    height: 220px;
+                    border-radius: 16px;
+                    background: Theme.thin-material;
+                    border-width: 1px;
+                    border-color: Theme.divider;
+
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 10px;
+
+                        Image {
+                            x: (parent.width - self.width) / 2;
+                            width: 36px;
+                            height: 36px;
+                            source: @image-url("icons/all-playlists.svg");
+                            colorize: Theme.system-tertiary;
+                        }
+
+                        Text {
+                            text: "No Playlists Found";
+                            font-size: Theme.size-title-3;
+                            font-weight: 600;
+                            color: Theme.system-primary;
+                            horizontal-alignment: center;
+                        }
+
+                        Text {
+                            text: "Your created and saved playlists will show up here.";
+                            font-size: Theme.size-body;
+                            color: Theme.system-secondary;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 20px;
+                    alignment: start;
+
+                    for item in LibraryData.playlists: SquareLockup {
+                        width: 180px;
+                        item: item;
+                        play => {
+                            if (item.target-type == "playlist" || item.target-type == "album") {
+                                Ui.open-collection(item.target-id, item.target-type == "album");
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Tab 2: Albums View
+            if LibraryData.active-tab == "Albums": VerticalLayout {
+                spacing: 16px;
+
+                if LibraryData.albums.length == 0 && !LibraryData.loading: Rectangle {
+                    height: 220px;
+                    border-radius: 16px;
+                    background: Theme.thin-material;
+                    border-width: 1px;
+                    border-color: Theme.divider;
+
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 10px;
+
+                        Image {
+                            x: (parent.width - self.width) / 2;
+                            width: 36px;
+                            height: 36px;
+                            source: @image-url("icons/albums.svg");
+                            colorize: Theme.system-tertiary;
+                        }
+
+                        Text {
+                            text: "No Albums Saved";
+                            font-size: Theme.size-title-3;
+                            font-weight: 600;
+                            color: Theme.system-primary;
+                            horizontal-alignment: center;
+                        }
+
+                        Text {
+                            text: "Save albums to your library to easily find them anytime.";
+                            font-size: Theme.size-body;
+                            color: Theme.system-secondary;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 20px;
+                    alignment: start;
+
+                    for item in LibraryData.albums: SquareLockup {
+                        width: 180px;
+                        item: item;
+                        play => {
+                            Ui.open-collection(item.target-id, true);
+                        }
+                    }
+                }
+            }
+
+            // Tab 3: Songs View
+            if LibraryData.active-tab == "Songs": VerticalLayout {
+                spacing: 2px;
+
+                if LibraryData.songs.length == 0 && !LibraryData.loading: Rectangle {
+                    height: 220px;
+                    border-radius: 16px;
+                    background: Theme.thin-material;
+                    border-width: 1px;
+                    border-color: Theme.divider;
+
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 10px;
+
+                        Image {
+                            x: (parent.width - self.width) / 2;
+                            width: 36px;
+                            height: 36px;
+                            source: @image-url("icons/songs.svg");
+                            colorize: Theme.system-tertiary;
+                        }
+
+                        Text {
+                            text: "No Songs in Library";
+                            font-size: Theme.size-title-3;
+                            font-weight: 600;
+                            color: Theme.system-primary;
+                            horizontal-alignment: center;
+                        }
+
+                        Text {
+                            text: "Liked songs and saved tracks will be listed here.";
+                            font-size: Theme.size-body;
+                            color: Theme.system-secondary;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+
+                // Table Header
+                if LibraryData.songs.length > 0: Rectangle {
+                    height: 32px;
+
+                    Rectangle {
+                        y: parent.height - 1px;
+                        width: 100%;
+                        height: 1px;
+                        background: Theme.divider;
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 12px;
+
+                        Text {
+                            width: 32px;
+                            text: "#";
+                            font-size: Theme.size-caption;
+                            font-weight: 600;
+                            color: Theme.system-tertiary;
+                            vertical-alignment: center;
+                        }
+
+                        Text {
+                            horizontal-stretch: 1;
+                            text: "TITLE";
+                            font-size: Theme.size-caption;
+                            font-weight: 600;
+                            color: Theme.system-tertiary;
+                            vertical-alignment: center;
+                        }
+
+                        Text {
+                            width: 220px;
+                            text: "ARTIST";
+                            font-size: Theme.size-caption;
+                            font-weight: 600;
+                            color: Theme.system-tertiary;
+                            vertical-alignment: center;
+                        }
+
+                        Text {
+                            width: 70px;
+                            text: "TIME";
+                            font-size: Theme.size-caption;
+                            font-weight: 600;
+                            color: Theme.system-tertiary;
+                            horizontal-alignment: right;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Song Rows
+                for track[idx] in LibraryData.songs: Rectangle {
+                    height: 52px;
+                    border-radius: 8px;
+                    background: song-ta.has-hover ? Theme.thin-material : transparent;
+
+                    song-ta := TouchArea {
+                        clicked => { LibraryData.play-song(idx); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 12px;
+                        alignment: center;
+
+                        Rectangle {
+                            width: 32px;
+                            height: 32px;
+
+                            if Player.title == track.title && Player.status == 1: PlayingBars {
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                                size: 20px;
+                            }
+
+                            if Player.title != track.title || Player.status != 1: Text {
+                                text: track.index > 0 ? track.index : (idx + 1);
+                                font-size: Theme.size-body;
+                                color: Theme.system-secondary;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        Rectangle {
+                            width: 40px;
+                            height: 40px;
+                            border-radius: 6px;
+                            clip: true;
+                            background: Theme.thick-material;
+
+                            if track.has-thumbnail: Image {
+                                width: 100%;
+                                height: 100%;
+                                image-fit: cover;
+                                source: track.thumbnail;
+                            }
+                        }
+
+                        Text {
+                            horizontal-stretch: 1;
+                            text: track.title;
+                            font-size: Theme.size-body;
+                            font-weight: 600;
+                            color: Player.title == track.title ? Theme.accent-red : Theme.system-primary;
+                            overflow: elide;
+                            vertical-alignment: center;
+                        }
+
+                        Text {
+                            width: 220px;
+                            text: track.artist;
+                            font-size: Theme.size-body;
+                            color: Theme.system-secondary;
+                            overflow: elide;
+                            vertical-alignment: center;
+                        }
+
+                        Text {
+                            width: 70px;
+                            text: track.duration;
+                            font-size: Theme.size-callout;
+                            color: Theme.system-tertiary;
+                            horizontal-alignment: right;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

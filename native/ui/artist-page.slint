@@ -1,0 +1,348 @@
+// 1:1 Apple Music Style Artist Page
+// Ported from web/app/src/pages/ArtistPage.tsx.
+
+import { Theme } from "theme.slint";
+import { AppIcon } from "icons.slint";
+import { ArtistData, CollectionTrack, ShelfItem, Ui } from "state.slint";
+import { SquareLockup, CircleLockup } from "lockups.slint";
+
+component ArtistTrackRow inherits Rectangle {
+    in property <CollectionTrack> track;
+    callback play();
+
+    height: 52px;
+    border-radius: 8px;
+    background: row-ta.has-hover ? Theme.system-quinary : transparent;
+    animate background { duration: 120ms; }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 16px;
+        spacing: 14px;
+        cross-axis-alignment: center;
+
+        // Number or Play
+        Rectangle {
+            width: 24px;
+            height: 24px;
+            background: transparent;
+
+            if !row-ta.has-hover: Text {
+                width: 100%;
+                height: 100%;
+                text: root.track.index;
+                font-size: 13px;
+                color: Theme.system-secondary;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            if row-ta.has-hover: AppIcon {
+                x: 4px;
+                y: 4px;
+                size: 16px;
+                source: @image-url("icons/play.svg");
+                tint: Theme.key-color;
+            }
+        }
+
+        // Thumbnail
+        if root.track.has-thumbnail: Rectangle {
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            clip: true;
+            background: Theme.joe;
+
+            Image {
+                width: 100%;
+                height: 100%;
+                source: root.track.thumbnail;
+                image-fit: cover;
+            }
+        }
+
+        // Title + Plays
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+
+            Text {
+                text: root.track.title;
+                font-size: Theme.size-body;
+                font-weight: 500;
+                color: Theme.system-primary;
+                overflow: elide;
+            }
+
+            if root.track.plays != "": Text {
+                text: root.track.plays;
+                font-size: Theme.size-callout;
+                color: Theme.system-secondary;
+            }
+        }
+
+        // Duration
+        Text {
+            text: root.track.duration;
+            font-size: 13px;
+            color: Theme.system-secondary;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+        }
+    }
+
+    row-ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.play(); }
+    }
+}
+
+export component ArtistPage inherits Rectangle {
+    background: transparent;
+
+    Flickable {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        content-width: parent.width;
+        content-height: 400px + Math.max(100px, ArtistData.top-songs.length * 54px) + 260px + 260px + 220px + 120px;
+
+        VerticalLayout {
+            padding-bottom: 120px;
+            spacing: 28px;
+
+            // Hero Banner Container
+            Rectangle {
+                width: 100%;
+                height: 340px;
+                clip: true;
+                background: Theme.joe;
+
+                // Photograph / Hero image
+                if ArtistData.has-banner: Image {
+                    width: 100%;
+                    height: 100%;
+                    source: ArtistData.banner;
+                    image-fit: cover;
+                }
+
+                // Apple Music gradient fade into the page background
+                Rectangle {
+                    width: 100%;
+                    height: 100%;
+                    background: @linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(31, 31, 31, 0.4) 60%, rgba(31, 31, 31, 0.95) 90%, #1f1f1fed 100%);
+                }
+
+                // Back Button (top-left)
+                Rectangle {
+                    x: Theme.body-gutter;
+                    y: 16px;
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 18px;
+                    background: back-ta.has-hover ? rgba(0,0,0,0.7) : rgba(0,0,0,0.45);
+                    animate background { duration: 150ms; }
+
+                    AppIcon {
+                        x: 8px;
+                        y: 8px;
+                        size: 20px;
+                        source: @image-url("icons/chevron-left.svg");
+                        tint: #ffffff;
+                    }
+
+                    back-ta := TouchArea {
+                        mouse-cursor: MouseCursor.pointer;
+                        clicked => { ArtistData.back(); }
+                    }
+                }
+
+                // Hero Content (bottom-left)
+                VerticalLayout {
+                    x: Theme.body-gutter;
+                    y: parent.height - self.height - 24px;
+                    width: parent.width - (Theme.body-gutter * 2);
+                    spacing: 12px;
+
+                    // Apple Artist Title Logo (or bold text name)
+                    if ArtistData.has-logo: Rectangle {
+                        width: 280px;
+                        height: 70px;
+                        background: transparent;
+
+                        Image {
+                            width: 100%;
+                            height: 100%;
+                            source: ArtistData.logo;
+                            image-fit: contain;
+                            horizontal-alignment: left;
+                        }
+                    }
+
+                    if !ArtistData.has-logo: Text {
+                        text: ArtistData.name;
+                        font-size: 42px;
+                        font-weight: 700;
+                        color: #ffffff;
+                        overflow: elide;
+                    }
+
+                    // Subscriber line & Play button row
+                    HorizontalLayout {
+                        spacing: 16px;
+                        cross-axis-alignment: center;
+
+                        // Play Button
+                        Rectangle {
+                            height: 38px;
+                            width: 130px;
+                            border-radius: 19px;
+                            background: play-ta.has-hover ? Theme.key-color : Theme.key-color-bg;
+                            animate background { duration: 150ms; }
+
+                            HorizontalLayout {
+                                alignment: center;
+                                spacing: 8px;
+
+                                AppIcon {
+                                    size: 18px;
+                                    source: @image-url("icons/play.svg");
+                                    tint: #ffffff;
+                                }
+
+                                Text {
+                                    text: "Play";
+                                    font-size: 15px;
+                                    font-weight: 600;
+                                    color: #ffffff;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            play-ta := TouchArea {
+                                mouse-cursor: MouseCursor.pointer;
+                                clicked => { ArtistData.play-all(); }
+                            }
+                        }
+
+                        if ArtistData.subscribers != "": Text {
+                            text: ArtistData.subscribers;
+                            font-size: 14px;
+                            color: rgba(255, 255, 255, 0.7);
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // Top Songs Section
+            if ArtistData.top-songs.length > 0: VerticalLayout {
+                padding-left: Theme.body-gutter;
+                padding-right: Theme.body-gutter;
+                spacing: 12px;
+
+                Text {
+                    text: "Top Songs";
+                    font-size: Theme.size-header;
+                    font-weight: 700;
+                    color: Theme.system-primary;
+                }
+
+                VerticalLayout {
+                    spacing: 2px;
+                    for track in ArtistData.top-songs: ArtistTrackRow {
+                        track: track;
+                        play => { ArtistData.play-top(track.index); }
+                    }
+                }
+            }
+
+            // Discography / Albums Shelf
+            if ArtistData.albums.length > 0: VerticalLayout {
+                padding-left: Theme.body-gutter;
+                padding-right: Theme.body-gutter;
+                spacing: 12px;
+
+                Text {
+                    text: "Albums";
+                    font-size: Theme.size-header;
+                    font-weight: 700;
+                    color: Theme.system-primary;
+                }
+
+                Flickable {
+                    height: 200px;
+                    content-height: 200px;
+                    content-width: ArtistData.albums.length * 160px;
+
+                    HorizontalLayout {
+                        spacing: 16px;
+                        for item in ArtistData.albums: SquareLockup {
+                            item: item;
+                            play => { ArtistData.open-album(item.target-id); }
+                        }
+                    }
+                }
+            }
+
+            // Singles & EPs Shelf
+            if ArtistData.singles.length > 0: VerticalLayout {
+                padding-left: Theme.body-gutter;
+                padding-right: Theme.body-gutter;
+                spacing: 12px;
+
+                Text {
+                    text: "Singles & EPs";
+                    font-size: Theme.size-header;
+                    font-weight: 700;
+                    color: Theme.system-primary;
+                }
+
+                Flickable {
+                    height: 200px;
+                    content-height: 200px;
+                    content-width: ArtistData.singles.length * 160px;
+
+                    HorizontalLayout {
+                        spacing: 16px;
+                        for item in ArtistData.singles: SquareLockup {
+                            item: item;
+                            play => { ArtistData.open-album(item.target-id); }
+                        }
+                    }
+                }
+            }
+
+            // Fans Also Like / Similar Artists
+            if ArtistData.similar.length > 0: VerticalLayout {
+                padding-left: Theme.body-gutter;
+                padding-right: Theme.body-gutter;
+                spacing: 12px;
+
+                Text {
+                    text: "Similar Artists";
+                    font-size: Theme.size-header;
+                    font-weight: 700;
+                    color: Theme.system-primary;
+                }
+
+                Flickable {
+                    height: 170px;
+                    content-height: 170px;
+                    content-width: ArtistData.similar.length * 136px;
+
+                    HorizontalLayout {
+                        spacing: 18px;
+                        for item in ArtistData.similar: CircleLockup {
+                            item: item;
+                            play => { ArtistData.open-artist(item.target-id); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

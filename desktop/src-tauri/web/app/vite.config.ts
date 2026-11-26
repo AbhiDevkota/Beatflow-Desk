@@ -1,18 +1,7 @@
-import { readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
-
-// The development extension's id, pinned by its manifest `key`
-// (web/extension/dev-key/). Read at build time so the page can message it.
-function devExtensionId(): string {
-  try {
-    return readFileSync(new URL('../extension/dev-key/extension-id.txt', import.meta.url), 'utf8').trim();
-  } catch {
-    return '';
-  }
-}
 
 // The party server's address defaults to BeatFlow's Render deployment if not overridden.
 function requirePartyServer(mode: string): void {
@@ -27,7 +16,7 @@ export default defineConfig(({ command, mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     define: {
-      DEV_EXTENSION_ID: JSON.stringify(devExtensionId()),
+      DEV_EXTENSION_ID: JSON.stringify(''),
     },
     resolve: {
       alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },

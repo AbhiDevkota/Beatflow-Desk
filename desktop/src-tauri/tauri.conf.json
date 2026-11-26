@@ -4,10 +4,10 @@
   "version": "1.9.2",
   "identifier": "com.music.beatflow.desktop",
   "build": {
-    "frontendDist": "../../web/app/dist",
+    "frontendDist": "web/app/dist",
     "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "corepack pnpm --config.pm-on-fail=ignore --dir ../web/app dev",
-    "beforeBuildCommand": "corepack pnpm --config.pm-on-fail=ignore --dir ../web/app build"
+    "beforeDevCommand": "corepack pnpm --config.pm-on-fail=ignore --dir src-tauri/web/app dev",
+    "beforeBuildCommand": "corepack pnpm --config.pm-on-fail=ignore --dir src-tauri/web/app build"
   },
   "app": {
     "withGlobalTauri": true,

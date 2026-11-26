@@ -1,6 +1,5 @@
 packages:
   - app
-  - extension
   - shared
 minimumReleaseAgeExclude:
   - '@tanstack/query-core@5.104.3'

@@ -1,11 +1,11 @@
 # BeatFlow Desktop (Tauri Windows Application)
 
-Native Windows desktop application for BeatFlow, built using [Tauri v2](https://v2.tauri.app/) and powered by the [`/web`](../web) UI.
+Native Windows desktop application for BeatFlow, built using [Tauri v2](https://v2.tauri.app/) with the web frontend embedded inside [`desktop/src-tauri/web`](src-tauri/web).
 
 ## Overview
 
-- **Frontend**: Shares the `/web` UI built with React 19, TypeScript, Tailwind CSS, TanStack Query, and Zustand.
-- **Backend / Shell**: Native Windows host implemented with Tauri v2 (Rust + WebView2).
+- **Frontend** (`desktop/src-tauri/web`): Built with React 19, TypeScript, Tailwind CSS, TanStack Query, and Zustand.
+- **Backend / Shell** (`desktop/src-tauri`): Native Windows host implemented with Tauri v2 (Rust + WebView2).
 - **Desktop Bridge**: An embedded bridge adapter intercepts `bitchord-bridge` requests and connects the UI with desktop capabilities (YouTube streaming, lyrics, audio DSP, and local configurations) without requiring a browser extension.
 
 ## Requirements
@@ -15,12 +15,21 @@ Native Windows desktop application for BeatFlow, built using [Tauri v2](https://
 - **Rust**: 1.90+ with `cargo` and MSVC toolchain
 - **Windows**: WebView2 runtime (pre-installed on Windows 10/11)
 
+## Setup
+
+Install dependencies for both the desktop CLI and the embedded web frontend:
+
+```bash
+corepack pnpm --config.pm-on-fail=ignore --dir desktop install
+corepack pnpm --config.pm-on-fail=ignore --dir desktop/src-tauri/web install
+```
+
 ## Development
 
 To start the desktop application in development mode:
 
 ```bash
-# From the repository root or desktop directory:
+# From the repository root:
 corepack pnpm --config.pm-on-fail=ignore --dir desktop dev
 ```
 
@@ -31,7 +40,7 @@ cd desktop/src-tauri
 cargo tauri dev
 ```
 
-This will automatically start the Vite dev server for `web/app` at `http://localhost:5173` and launch the Tauri native window.
+This will automatically start the Vite dev server for `desktop/src-tauri/web/app` at `http://localhost:5173` and launch the Tauri native window.
 
 ## Production Build
 

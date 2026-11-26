@@ -1,0 +1,4 @@
+# Ignore the embedded web frontend and build artifacts so `tauri dev`
+# lets Vite HMR handle frontend edits instead of rebuilding Rust.
+web/
+target/
